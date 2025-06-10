@@ -3,6 +3,7 @@ import MapKit
 
 struct MapView: UIViewRepresentable {
     let visitedCountries: [Country]
+    @EnvironmentObject var viewModel: CountriesViewModel
     @EnvironmentObject var polygonManager: CountryPolygonManager
     
     func makeUIView(context: Context) -> MKMapView {
@@ -20,8 +21,9 @@ struct MapView: UIViewRepresentable {
     }
     
     func updateUIView(_ mapView: MKMapView, context: Context) {
-        // Remove existing overlays
+        // Remove existing overlays and annotations
         mapView.removeOverlays(mapView.overlays)
+        mapView.removeAnnotations(mapView.annotations)
         
         // Add overlays for visited countries
         for country in visitedCountries {
@@ -30,6 +32,17 @@ struct MapView: UIViewRepresentable {
                 mapView.addOverlays(polygons)
             }
         }
+        
+        // Add pins for visited cities
+        let cityAnnotations = viewModel.visitedCities.compactMap { visitedCity -> CityAnnotation? in
+            guard let cityData = visitedCity.cityData else { return nil }
+            return CityAnnotation(
+                coordinate: cityData.coordinates.clCoordinate,
+                title: cityData.name,
+                subtitle: cityData.region ?? ""
+            )
+        }
+        mapView.addAnnotations(cityAnnotations)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -53,5 +66,39 @@ struct MapView: UIViewRepresentable {
             }
             return MKOverlayRenderer(overlay: overlay)
         }
+        
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard annotation is CityAnnotation else { return nil }
+            
+            let identifier = "CityPin"
+            var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+            
+            if annotationView == nil {
+                annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                annotationView?.canShowCallout = true
+            } else {
+                annotationView?.annotation = annotation
+            }
+            
+            if let markerView = annotationView as? MKMarkerAnnotationView {
+                markerView.markerTintColor = .systemRed
+                markerView.glyphImage = UIImage(systemName: "building.2.fill")
+            }
+            
+            return annotationView
+        }
+    }
+}
+
+class CityAnnotation: NSObject, MKAnnotation {
+    let coordinate: CLLocationCoordinate2D
+    let title: String?
+    let subtitle: String?
+    
+    init(coordinate: CLLocationCoordinate2D, title: String, subtitle: String) {
+        self.coordinate = coordinate
+        self.title = title
+        self.subtitle = subtitle
+        super.init()
     }
 } 

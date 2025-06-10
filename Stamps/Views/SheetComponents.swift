@@ -107,12 +107,13 @@ internal struct EmptyStateView: View {
 
 // MARK: - Country List Component
 internal struct CountryListView: View {
-    let viewModel: CountriesViewModel
+    @EnvironmentObject var viewModel: CountriesViewModel
     
     var body: some View {
         VStack(spacing: 0) {
             ForEach(viewModel.visitedCountries) { country in
                 CountryRow(country: country)
+                    .environmentObject(viewModel)
                     .contentShape(Rectangle())
                     .onTapGesture {}
                 if country.id != viewModel.visitedCountries.last?.id {

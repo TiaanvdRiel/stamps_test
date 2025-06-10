@@ -4,7 +4,9 @@ import CoreLocation
 class CityDataManager {
     static let shared = CityDataManager()
     
-    private(set) var cities: [String: [CityData]] = [:] // Grouped by country code
+    private var allCities: [CityData] = []
+    private var citiesByCountry: [String: [CityData]] = [:]
+    private var topCities: [CityData] = []
     
     struct CityData: Codable, Identifiable, Hashable {
         let id: String
@@ -46,8 +48,16 @@ class CityDataManager {
             let decoder = JSONDecoder()
             let citiesData = try decoder.decode(CitiesResponse.self, from: data)
             
-            // Group cities by country code
-            cities = Dictionary(grouping: citiesData.cities) { $0.countryCode }
+            // Store all cities and create indexes
+            allCities = citiesData.cities
+            citiesByCountry = Dictionary(grouping: citiesData.cities) { $0.countryCode }
+            
+            // Pre-sort top cities by population
+            topCities = allCities
+                .sorted { ($0.population ?? 0) > ($1.population ?? 0) }
+                .prefix(100)
+                .map { $0 }
+            
             print("Loaded \(citiesData.cities.count) cities")
         } catch {
             print("Error loading city data: \(error)")
@@ -65,24 +75,46 @@ class CityDataManager {
         }
     }
     
-    func searchCities(countryCode: String, query: String) -> [CityData] {
-        let countryCities = cities[countryCode] ?? []
-        if query.isEmpty {
-            return countryCities
+    func searchCities(query: String) -> [CityData] {
+        // Return pre-sorted top cities for empty query
+        guard !query.isEmpty else {
+            return topCities
         }
         
-        return countryCities.filter { city in
-            city.name.localizedCaseInsensitiveContains(query) ||
-            (city.region?.localizedCaseInsensitiveContains(query) ?? false)
+        let searchQuery = query.lowercased()
+        
+        // Search with a limit to prevent performance issues
+        return allCities
+            .filter { city in
+                city.name.lowercased().contains(searchQuery) ||
+                (city.region?.lowercased().contains(searchQuery) ?? false) ||
+                (Locale.current.localizedString(forRegionCode: city.countryCode)?.lowercased().contains(searchQuery) ?? false)
+            }
+            .prefix(100)
+            .sorted { ($0.population ?? 0) > ($1.population ?? 0) }
+    }
+    
+    func searchCities(countryCode: String, query: String) -> [CityData] {
+        guard let countryCities = citiesByCountry[countryCode] else { return [] }
+        
+        if query.isEmpty {
+            return countryCities
+                .sorted { ($0.population ?? 0) > ($1.population ?? 0) }
+                .prefix(100)
+                .map { $0 }
         }
+        
+        let searchQuery = query.lowercased()
+        return countryCities
+            .filter { city in
+                city.name.lowercased().contains(searchQuery) ||
+                (city.region?.lowercased().contains(searchQuery) ?? false)
+            }
+            .prefix(100)
+            .sorted { ($0.population ?? 0) > ($1.population ?? 0) }
     }
     
     func city(withId id: String) -> CityData? {
-        for citiesList in cities.values {
-            if let city = citiesList.first(where: { $0.id == id }) {
-                return city
-            }
-        }
-        return nil
+        allCities.first { $0.id == id }
     }
 } 

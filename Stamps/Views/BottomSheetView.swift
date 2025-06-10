@@ -73,15 +73,43 @@ internal struct BottomSheetView: View {
                 .fontWeight(.bold)
                 .padding(.horizontal)
             
-            ProgressCircleView(
-                progress: progress,
-                totalCountries: viewModel.totalCountries
-            )
+            HStack(spacing: 20) {
+                ProgressCircleView(
+                    progress: progress,
+                    totalCountries: viewModel.totalCountries
+                )
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    StatView(
+                        title: "Total Cities",
+                        value: "\(viewModel.totalVisitedCities)",
+                        icon: "building.2.fill"
+                    )
+                    
+                    if let lastVisit = viewModel.lastVisit {
+                        StatView(
+                            title: "Last Visit",
+                            value: lastVisit.formatted(date: .abbreviated, time: .omitted),
+                            icon: "calendar"
+                        )
+                    }
+                    
+                    if let mostVisited = viewModel.mostVisitedCountry {
+                        StatView(
+                            title: "Most Visited",
+                            value: "\(mostVisited.name) (\(viewModel.citiesPerCountry[mostVisited.code] ?? 0))",
+                            icon: "star.fill"
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal)
             
             if viewModel.visitedCountries.isEmpty {
                 EmptyStateView()
             } else {
-                CountryListView(viewModel: viewModel)
+                CountryListView()
+                    .environmentObject(viewModel)
             }
         }
     }
@@ -129,5 +157,27 @@ internal struct BottomSheetView: View {
         
         impactMed.prepare()
         impactLight.prepare()
+    }
+}
+
+private struct StatView: View {
+    let title: String
+    let value: String
+    let icon: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+                .frame(width: 24)
+            VStack(alignment: .leading) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(value)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+        }
     }
 }

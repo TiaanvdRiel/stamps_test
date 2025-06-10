@@ -1,7 +1,7 @@
 import Foundation
 import CoreLocation
 
-struct Country: Identifiable, Codable, Equatable {
+struct Country: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     let name: String
     let code: String
@@ -15,7 +15,7 @@ struct Country: Identifiable, Codable, Equatable {
     var flag: String {
         // Convert country code to flag emoji
         let base: UInt32 = 127397 // This is the Unicode offset for regional indicator symbols
-        var flagString = ""
+        var flagString = ""I
         
         // Convert two-letter country code to flag emoji
         for scalar in code.uppercased().unicodeScalars {
@@ -42,15 +42,14 @@ struct Country: Identifiable, Codable, Equatable {
     static func == (lhs: Country, rhs: Country) -> Bool {
         lhs.code == rhs.code
     }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(code)
+    }
 }
 
-// Extension to handle CLLocationCoordinate2D encoding/decoding
+// MARK: - CLLocationCoordinate2D Codable Extension
 extension CLLocationCoordinate2D: Codable {
-    enum CodingKeys: String, CodingKey {
-        case latitude
-        case longitude
-    }
-    
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let latitude = try container.decode(Double.self, forKey: .latitude)
@@ -62,5 +61,25 @@ extension CLLocationCoordinate2D: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(latitude, forKey: .latitude)
         try container.encode(longitude, forKey: .longitude)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case latitude
+        case longitude
+    }
+}
+
+// MARK: - CLLocationCoordinate2D Equatable Extension
+extension CLLocationCoordinate2D: Equatable {
+    public static func == (lhs: CLLocationCoordinate2D, rhs: CLLocationCoordinate2D) -> Bool {
+        lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
+    }
+}
+
+// MARK: - CLLocationCoordinate2D Hashable Extension
+extension CLLocationCoordinate2D: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(latitude)
+        hasher.combine(longitude)
     }
 } 

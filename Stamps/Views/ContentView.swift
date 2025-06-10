@@ -14,9 +14,10 @@ struct ContentView: View {
                 .ignoresSafeArea()
             
             BottomSheetView(viewModel: viewModel, showingAddSheet: $showingAddSheet)
+                .environmentObject(viewModel)
         }
         .sheet(isPresented: $showingAddSheet) {
-            AddCountryView()
+            AddDestinationView()
                 .environmentObject(viewModel)
         }
     }
