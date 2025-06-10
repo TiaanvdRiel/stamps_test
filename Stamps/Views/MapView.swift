@@ -25,10 +25,12 @@ struct MapView: UIViewRepresentable {
                 guard let response = response else { return }
                 
                 for item in response.mapItems {
-                    if let country = item.placemark.country,
-                       country.lowercased() == country.name.lowercased() {
-                        let overlay = MKPolygon(coordinates: item.placemark.location?.coordinate)
-                        mapView.addOverlay(overlay)
+                    if let countryName = item.placemark.country,
+                       countryName.lowercased() == country.name.lowercased() {
+                        if let coordinate = item.placemark.location?.coordinate {
+                            let overlay = MKCircle(center: coordinate, radius: 100000)
+                            mapView.addOverlay(overlay)
+                        }
                     }
                 }
             }
@@ -47,8 +49,8 @@ struct MapView: UIViewRepresentable {
         }
         
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let polygon = overlay as? MKPolygon {
-                let renderer = MKPolygonRenderer(polygon: polygon)
+            if let circle = overlay as? MKCircle {
+                let renderer = MKCircleRenderer(circle: circle)
                 renderer.fillColor = UIColor.systemBlue.withAlphaComponent(0.3)
                 renderer.strokeColor = UIColor.systemBlue
                 renderer.lineWidth = 2

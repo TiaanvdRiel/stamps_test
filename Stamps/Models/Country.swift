@@ -1,8 +1,8 @@
 import Foundation
-import MapKit
+import CoreLocation
 
 struct Country: Identifiable, Codable {
-    let id = UUID()
+    var id = UUID()
     let name: String
     let code: String
     let visitDate: Date
@@ -13,12 +13,11 @@ struct Country: Identifiable, Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, name, code, visitDate
-        case coordinates
+        case id, name, code, visitDate, coordinates
     }
     
-    init(id: String = UUID().uuidString, name: String, code: String, visitDate: Date, coordinates: [CLLocationCoordinate2D]) {
-        self.id = id
+    init(name: String, code: String, visitDate: Date, coordinates: [CLLocationCoordinate2D] = []) {
+        self.id = UUID()
         self.name = name
         self.code = code
         self.visitDate = visitDate

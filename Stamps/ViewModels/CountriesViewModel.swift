@@ -40,11 +40,14 @@ class CountriesViewModel: ObservableObject {
     }
     
     var lastVisit: Date? {
-        visitedCountries.map { $0.visitDate }.max()
+        visitedCountries.max(by: { $0.visitDate < $1.visitDate })?.visitDate
     }
     
     var mostVisitedRegion: String? {
-        // This is a placeholder - you might want to implement actual region detection
-        return "Europe"
+        let regions = visitedCountries.map { $0.name }
+        let regionCounts = regions.reduce(into: [:]) { counts, region in
+            counts[region, default: 0] += 1
+        }
+        return regionCounts.max(by: { $0.value < $1.value })?.key
     }
 } 

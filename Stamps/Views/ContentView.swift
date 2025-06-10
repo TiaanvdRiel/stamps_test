@@ -4,7 +4,6 @@ import MapKit
 struct ContentView: View {
     @StateObject private var viewModel = CountriesViewModel()
     @State private var showingAddSheet = false
-    @State private var showingBottomSheet = true
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 20, longitude: 0),
         span: MKCoordinateSpan(latitudeDelta: 100, longitudeDelta: 100)
@@ -18,26 +17,8 @@ struct ContentView: View {
             VStack {
                 Spacer()
                 
-                if showingBottomSheet {
-                    BottomSheetView(viewModel: viewModel)
-                        .transition(.move(edge: .bottom))
-                }
-            }
-            
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button(action: { showingAddSheet = true }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.blue)
-                            .background(Color.white)
-                            .clipShape(Circle())
-                            .shadow(radius: 4)
-                    }
-                    .padding()
-                }
+                // Bottom Sheet with Add Button
+                BottomSheetView(viewModel: viewModel, showingAddSheet: $showingAddSheet)
             }
         }
         .sheet(isPresented: $showingAddSheet) {
@@ -46,91 +27,126 @@ struct ContentView: View {
     }
 }
 
-struct MapView: UIViewRepresentable {
-    let visitedCountries: [Country]
-    
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
-        mapView.delegate = context.coordinator
-        return mapView
-    }
-    
-    func updateUIView(_ mapView: MKMapView, context: Context) {
-        // Remove existing overlays
-        mapView.removeOverlays(mapView.overlays)
-        
-        // Add overlays for visited countries
-        for country in visitedCountries {
-            let polygon = MKPolygon(coordinates: country.coordinates, count: country.coordinates.count)
-            mapView.addOverlay(polygon)
-        }
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, MKMapViewDelegate {
-        var parent: MapView
-        
-        init(_ parent: MapView) {
-            self.parent = parent
-        }
-        
-        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let polygon = overlay as? MKPolygon {
-                let renderer = MKPolygonRenderer(polygon: polygon)
-                renderer.fillColor = UIColor.blue.withAlphaComponent(0.3)
-                renderer.strokeColor = UIColor.blue
-                renderer.lineWidth = 1
-                return renderer
-            }
-            return MKOverlayRenderer(overlay: overlay)
-        }
-    }
-}
-
 struct BottomSheetView: View {
     @ObservedObject var viewModel: CountriesViewModel
+    @Binding var showingAddSheet: Bool
+    @State private var translation: CGFloat = 0
+    @State private var offset: CGFloat = 0  // Start at 0 (collapsed)
+    @State private var isDragging = false
+    
+    // Snap points matching Apple Maps
+    private let collapsedHeight: CGFloat = 100
+    private let halfHeight: CGFloat = UIScreen.main.bounds.height * 0.5
+    private let fullHeight: CGFloat = UIScreen.main.bounds.height * 0.9
     
     var body: some View {
-        VStack(spacing: 20) {
-            RoundedRectangle(cornerRadius: 5)
-                .fill(Color.gray.opacity(0.5))
-                .frame(width: 40, height: 5)
-                .padding(.top, 10)
-            
-            VStack(alignment: .leading, spacing: 15) {
-                Text("Your Travel Stats")
-                    .font(.title2)
-                    .bold()
-                
-                HStack(spacing: 30) {
-                    StatView(title: "Countries", value: "\(viewModel.totalCountries)")
-                    if let lastVisit = viewModel.lastVisit {
-                        StatView(title: "Last Visit", value: lastVisit.formatted(date: .abbreviated, time: .omitted))
-                    }
-                    if let region = viewModel.mostVisitedRegion {
-                        StatView(title: "Top Region", value: region)
-                    }
+        GeometryReader { geometry in
+            ZStack(alignment: .topTrailing) {
+                // Add Button
+                Button(action: { showingAddSheet = true }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 50, height: 50)
+                        .background(Color.blue)
+                        .clipShape(Circle())
+                        .shadow(radius: 2)
                 }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+                .offset(y: -70)
                 
-                if !viewModel.visitedCountries.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 15) {
-                            ForEach(viewModel.visitedCountries) { country in
-                                CountryCard(country: country)
+                // Bottom Sheet
+                VStack(spacing: 0) {
+                    // Handle
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.gray.opacity(0.5))
+                        .frame(width: 40, height: 5)
+                        .padding(.top, 10)
+                        .padding(.bottom, 5)
+                    
+                    // Content
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Stats Row
+                        HStack(spacing: 30) {
+                            StatView(title: "Countries", value: "\(viewModel.totalCountries)")
+                            if let lastVisit = viewModel.lastVisit {
+                                StatView(title: "Last Visit", value: lastVisit.formatted(date: .abbreviated, time: .omitted))
+                            }
+                            if let region = viewModel.mostVisitedRegion {
+                                StatView(title: "Top Region", value: region)
                             }
                         }
                         .padding(.horizontal)
+                        
+                        if !viewModel.visitedCountries.isEmpty {
+                            // Countries List
+                            List {
+                                ForEach(viewModel.visitedCountries) { country in
+                                    CountryRow(country: country)
+                                }
+                            }
+                            .listStyle(PlainListStyle())
+                        }
                     }
+                    .padding(.bottom)
                 }
+                .frame(maxWidth: .infinity)
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.ultraThinMaterial)
+                        
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color(UIColor.systemBackground).opacity(0.8))
+                    }
+                )
             }
-            .padding()
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .offset(y: max(-fullHeight, min(0, offset + translation)))
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        isDragging = true
+                        // Allow dragging in both directions
+                        translation = value.translation.height
+                    }
+                    .onEnded { value in
+                        isDragging = false
+                        let velocity = value.predictedEndLocation.y - value.location.y
+                        let shouldSnap = abs(velocity) > 100
+                        
+                        let currentOffset = offset + translation
+                        
+                        if shouldSnap {
+                            if velocity > 0 {
+                                // Moving down - snap to closest lower point
+                                if currentOffset > -halfHeight {
+                                    offset = 0
+                                } else {
+                                    offset = -halfHeight
+                                }
+                            } else {
+                                // Moving up - snap to closest higher point
+                                if currentOffset < -halfHeight {
+                                    offset = -fullHeight
+                                } else {
+                                    offset = -halfHeight
+                                }
+                            }
+                        } else {
+                            // Find closest snap point
+                            let snapPoints = [0, -halfHeight, -fullHeight]
+                            let closest = snapPoints.min(by: { abs($0 - currentOffset) < abs($1 - currentOffset) }) ?? 0
+                            offset = closest
+                        }
+                        
+                        translation = 0
+                    }
+            )
+            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.8), value: isDragging)
         }
-        .background(Color(UIColor.systemBackground))
-        .cornerRadius(20)
-        .shadow(radius: 10)
+        .ignoresSafeArea(edges: .bottom)
     }
 }
 
@@ -149,57 +165,25 @@ struct StatView: View {
     }
 }
 
-struct CountryCard: View {
+struct CountryRow: View {
     let country: Country
     
     var body: some View {
-        VStack(alignment: .leading) {
-            Text(country.name)
-                .font(.headline)
-            Text(country.visitDate.formatted(date: .abbreviated, time: .omitted))
+        HStack {
+            VStack(alignment: .leading) {
+                Text(country.name)
+                    .font(.headline)
+                Text(country.visitDate.formatted(date: .abbreviated, time: .omitted))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding()
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(10)
+        .padding(.vertical, 8)
     }
 }
-
-struct AddCountryView: View {
-    @Environment(\.dismiss) var dismiss
-    @ObservedObject var viewModel: CountriesViewModel
-    @State private var countryName = ""
-    @State private var countryCode = ""
-    @State private var visitDate = Date()
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                TextField("Country Name", text: $countryName)
-                TextField("Country Code", text: $countryCode)
-                DatePicker("Visit Date", selection: $visitDate, displayedComponents: .date)
-            }
-            .navigationTitle("Add Country")
-            .navigationBarItems(
-                leading: Button("Cancel") { dismiss() },
-                trailing: Button("Save") {
-                    // Here you would typically fetch the country coordinates
-                    // For now, we'll use a placeholder
-                    let coordinates = [
-                        CLLocationCoordinate2D(latitude: 0, longitude: 0)
-                    ]
-                    let country = Country(
-                        name: countryName,
-                        code: countryCode,
-                        visitDate: visitDate,
-                        coordinates: coordinates
-                    )
-                    viewModel.addCountry(country)
-                    dismiss()
-                }
-                .disabled(countryName.isEmpty || countryCode.isEmpty)
-            )
-        }
-    }
-} 
