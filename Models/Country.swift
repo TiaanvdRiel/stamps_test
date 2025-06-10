@@ -2,11 +2,15 @@ import Foundation
 import MapKit
 
 struct Country: Identifiable, Codable {
-    let id: String
+    let id = UUID()
     let name: String
     let code: String
     let visitDate: Date
     var coordinates: [CLLocationCoordinate2D]
+    
+    var formattedDate: String {
+        visitDate.formatted(date: .abbreviated, time: .omitted)
+    }
     
     enum CodingKeys: String, CodingKey {
         case id, name, code, visitDate
