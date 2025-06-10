@@ -1,8 +1,8 @@
 import Foundation
 import CoreLocation
 
-struct Country: Identifiable, Codable {
-    var id = UUID()
+struct Country: Identifiable, Codable, Equatable {
+    let id: UUID
     let name: String
     let code: String
     let visitDate: Date
@@ -10,6 +10,21 @@ struct Country: Identifiable, Codable {
     
     var formattedDate: String {
         visitDate.formatted(date: .abbreviated, time: .omitted)
+    }
+    
+    var flag: String {
+        // Convert country code to flag emoji
+        let base: UInt32 = 127397 // This is the Unicode offset for regional indicator symbols
+        var flagString = ""
+        
+        // Convert two-letter country code to flag emoji
+        for scalar in code.uppercased().unicodeScalars {
+            if let scalarValue = UnicodeScalar(base + scalar.value) {
+                flagString.append(String(scalarValue))
+            }
+        }
+        
+        return flagString
     }
     
     enum CodingKeys: String, CodingKey {
@@ -22,6 +37,10 @@ struct Country: Identifiable, Codable {
         self.code = code
         self.visitDate = visitDate
         self.coordinates = coordinates
+    }
+    
+    static func == (lhs: Country, rhs: Country) -> Bool {
+        lhs.code == rhs.code
     }
 }
 

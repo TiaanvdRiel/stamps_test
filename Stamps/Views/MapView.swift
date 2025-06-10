@@ -3,6 +3,7 @@ import MapKit
 
 struct MapView: UIViewRepresentable {
     let visitedCountries: [Country]
+    @EnvironmentObject var polygonManager: CountryPolygonManager
     
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
@@ -16,24 +17,8 @@ struct MapView: UIViewRepresentable {
         
         // Add overlays for visited countries
         for country in visitedCountries {
-            let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = country.name
-            request.region = mapView.region
-            
-            let search = MKLocalSearch(request: request)
-            search.start { response, error in
-                guard let response = response else { return }
-                
-                for item in response.mapItems {
-                    if let countryName = item.placemark.country,
-                       countryName.lowercased() == country.name.lowercased() {
-                        if let coordinate = item.placemark.location?.coordinate {
-                            let overlay = MKCircle(center: coordinate, radius: 100000)
-                            mapView.addOverlay(overlay)
-                        }
-                    }
-                }
-            }
+            let polygons = polygonManager.polygonsForCountry(country.name)
+            mapView.addOverlays(polygons)
         }
     }
     
@@ -49,8 +34,8 @@ struct MapView: UIViewRepresentable {
         }
         
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let circle = overlay as? MKCircle {
-                let renderer = MKCircleRenderer(circle: circle)
+            if let polygon = overlay as? MKPolygon {
+                let renderer = MKPolygonRenderer(polygon: polygon)
                 renderer.fillColor = UIColor.systemBlue.withAlphaComponent(0.3)
                 renderer.strokeColor = UIColor.systemBlue
                 renderer.lineWidth = 2

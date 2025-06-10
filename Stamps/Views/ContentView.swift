@@ -4,25 +4,18 @@ import MapKit
 struct ContentView: View {
     @StateObject private var viewModel = CountriesViewModel()
     @State private var showingAddSheet = false
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 20, longitude: 0),
-        span: MKCoordinateSpan(latitudeDelta: 100, longitudeDelta: 100)
-    )
     
     var body: some View {
         ZStack {
-            MapView(visitedCountries: viewModel.visitedCountries)
+            MapView()
+                .environmentObject(viewModel)
                 .ignoresSafeArea()
             
-            VStack {
-                Spacer()
-                
-                // Bottom Sheet with Add Button
-                BottomSheetView(viewModel: viewModel, showingAddSheet: $showingAddSheet)
-            }
+            BottomSheetView(viewModel: viewModel, showingAddSheet: $showingAddSheet)
         }
         .sheet(isPresented: $showingAddSheet) {
-            AddCountryView(viewModel: viewModel)
+            AddCountryView()
+                .environmentObject(viewModel)
         }
     }
 }
@@ -30,19 +23,36 @@ struct ContentView: View {
 struct BottomSheetView: View {
     @ObservedObject var viewModel: CountriesViewModel
     @Binding var showingAddSheet: Bool
-    @State private var offset: CGFloat = 0
-    @State private var lastOffset: CGFloat = 0
-    @GestureState private var translation: CGFloat = 0
-    @State private var isDragging: Bool = false
+    @State private var currentHeight: CGFloat = 0
+    @GestureState private var dragOffset: CGFloat = 0
     
-    private let minHeight: CGFloat = 100
-    private let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.85
+    // Haptic feedback generators
+    private let impactMed = UIImpactFeedbackGenerator(style: .medium)
+    private let impactLight = UIImpactFeedbackGenerator(style: .light)
+    
+    // Constants
+    private let totalCountries = 195 // Standard count of sovereign states
+    private var collapsedHeight: CGFloat { 120 }
+    private var middleHeight: CGFloat { UIScreen.main.bounds.height * 0.45 }
+    private var expandedHeight: CGFloat { UIScreen.main.bounds.height * 0.85 }
+    
+    private var progress: Double {
+        Double(viewModel.totalCountries) / Double(totalCountries)
+    }
     
     var body: some View {
         GeometryReader { geometry in
+            let maxHeight = geometry.size.height
+            let minY = maxHeight - expandedHeight
+            let midY = maxHeight - middleHeight
+            let collapsedY = maxHeight - collapsedHeight
+            
             ZStack(alignment: .topTrailing) {
                 // Add Button
-                Button(action: { showingAddSheet = true }) {
+                Button(action: {
+                    impactMed.impactOccurred()
+                    showingAddSheet = true
+                }) {
                     Image(systemName: "plus")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
@@ -57,42 +67,69 @@ struct BottomSheetView: View {
                 
                 // Bottom Sheet
                 VStack(spacing: 0) {
-                    // Handle
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.gray.opacity(0.5))
-                        .frame(width: 40, height: 5)
-                        .padding(.top, 10)
-                        .padding(.bottom, 5)
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                if offset == 0 {
-                                    offset = -maxHeight/2
-                                } else {
-                                    offset = 0
-                                }
+                    // Handle and Close Button Row
+                    HStack {
+                        Spacer()
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Color.gray.opacity(0.5))
+                            .frame(width: 40, height: 5)
+                        Spacer()
+                        Button(action: {
+                            impactLight.impactOccurred()
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                currentHeight = collapsedY
                             }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.gray)
                         }
+                        .padding(.trailing)
+                    }
+                    .padding(.top, 10)
+                    .padding(.bottom, 5)
                     
                     // Content
-                    ScrollView {
+                    ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 20) {
-                            // Title
                             Text("My Passport")
                                 .font(.title)
                                 .fontWeight(.bold)
                                 .padding(.horizontal)
                             
-                            // Stats Row
-                            HStack(spacing: 30) {
-                                StatView(title: "Countries", value: "\(viewModel.totalCountries)")
-                                if let lastVisit = viewModel.lastVisit {
-                                    StatView(title: "Last Visit", value: lastVisit.formatted(date: .abbreviated, time: .omitted))
+                            // Progress Circle
+                            VStack(spacing: 8) {
+                                ZStack {
+                                    Circle()
+                                        .stroke(lineWidth: 12)
+                                        .opacity(0.3)
+                                        .foregroundColor(.blue)
+                                    
+                                    Circle()
+                                        .trim(from: 0.0, to: progress)
+                                        .stroke(style: StrokeStyle(lineWidth: 12, lineCap: .round, lineJoin: .round))
+                                        .foregroundColor(.blue)
+                                        .rotationEffect(Angle(degrees: 270.0))
+                                        .animation(.easeInOut(duration: 1.0), value: progress)
+                                    
+                                    VStack {
+                                        Text("\(viewModel.totalCountries)")
+                                            .font(.system(size: 32, weight: .bold))
+                                        Text("of \(totalCountries)")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
+                                .frame(width: 120, height: 120)
+                                .padding(.vertical)
+                                
+                                Text("Countries Visited")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
                             }
-                            .padding(.horizontal)
+                            .frame(maxWidth: .infinity)
                             
                             if viewModel.visitedCountries.isEmpty {
-                                // Empty State
                                 Spacer()
                                 Text("No destinations added")
                                     .font(.headline)
@@ -101,10 +138,13 @@ struct BottomSheetView: View {
                                     .padding(.top, 40)
                                 Spacer()
                             } else {
-                                // Countries List
                                 VStack(spacing: 0) {
                                     ForEach(viewModel.visitedCountries) { country in
                                         CountryRow(country: country)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                impactLight.impactOccurred()
+                                            }
                                         if country.id != viewModel.visitedCountries.last?.id {
                                             Divider()
                                                 .padding(.horizontal)
@@ -116,70 +156,52 @@ struct BottomSheetView: View {
                         }
                         .padding(.bottom, geometry.safeAreaInsets.bottom + 20)
                     }
-                    .simultaneousGesture(
-                        DragGesture()
-                            .onChanged { _ in
-                                isDragging = true
-                            }
-                    )
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: expandedHeight, alignment: .top)
                 .background(
                     ZStack {
                         RoundedRectangle(cornerRadius: 20)
                             .fill(.ultraThinMaterial)
-                        
                         RoundedRectangle(cornerRadius: 20)
                             .fill(Color(UIColor.systemBackground).opacity(0.8))
                     }
                 )
             }
             .frame(maxHeight: .infinity, alignment: .bottom)
-            .offset(y: max(-maxHeight, min(0, offset + translation)))
+            .offset(y: max(minY, min(collapsedY, (currentHeight == 0 ? collapsedY : currentHeight) + dragOffset)))
             .gesture(
                 DragGesture()
-                    .updating($translation) { value, state, _ in
-                        if !isDragging {
-                            state = value.translation.height
-                        }
+                    .updating($dragOffset) { value, state, _ in
+                        state = value.translation.height
                     }
                     .onEnded { value in
-                        isDragging = false
-                        let velocity = value.predictedEndLocation.y - value.location.y
-                        let shouldSnap = abs(velocity) > 100
+                        let maxHeight = geometry.size.height
+                        let minY = maxHeight - expandedHeight
+                        let midY = maxHeight - middleHeight
+                        let collapsedY = maxHeight - collapsedHeight
                         
-                        let currentOffset = offset + value.translation.height
-                        let snapPoints = [0, -maxHeight/2, -maxHeight]
+                        let newY = (currentHeight == 0 ? collapsedY : currentHeight) + value.translation.height
+                        let positions = [collapsedY, midY, minY]
+                        let closest = positions.min(by: { abs($0 - newY) < abs($1 - newY) }) ?? collapsedY
                         
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            if shouldSnap {
-                                if velocity > 0 {
-                                    // Moving down
-                                    if currentOffset > -maxHeight/2 {
-                                        offset = 0
-                                    } else {
-                                        offset = -maxHeight/2
-                                    }
-                                } else {
-                                    // Moving up
-                                    if currentOffset < -maxHeight/2 {
-                                        offset = -maxHeight
-                                    } else {
-                                        offset = -maxHeight/2
-                                    }
-                                }
-                            } else {
-                                // Find closest snap point
-                                let closest = snapPoints.min(by: { abs($0 - currentOffset) < abs($1 - currentOffset) }) ?? 0
-                                offset = closest
-                            }
+                        impactLight.impactOccurred()
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            currentHeight = closest
                         }
-                        
-                        lastOffset = offset
                     }
             )
+            .onAppear {
+                // Start collapsed
+                let maxHeight = geometry.size.height
+                let collapsedY = maxHeight - collapsedHeight
+                currentHeight = collapsedY
+                
+                // Prepare haptic engines
+                impactMed.prepare()
+                impactLight.prepare()
+            }
+            .ignoresSafeArea(edges: .bottom)
         }
-        .ignoresSafeArea(edges: .bottom)
     }
 }
 

@@ -1,17 +1,19 @@
 import SwiftUI
 
 struct AddCountryView: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: CountriesViewModel
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var viewModel: CountriesViewModel
     @State private var searchText = ""
     @State private var selectedDate = Date()
     
-    private let countries: [(name: String, code: String)] = Locale.isoRegionCodes.compactMap { code in
+    private let countries: [Country] = Locale.isoRegionCodes.compactMap { code in
         guard let name = Locale.current.localizedString(forRegionCode: code) else { return nil }
-        return (name: name, code: code)
+        return Country(name: name, code: code)
     }.sorted { $0.name < $1.name }
     
-    var filteredCountries: [(name: String, code: String)] {
+    private let impactMed = UIImpactFeedbackGenerator(style: .medium)
+    
+    var filteredCountries: [Country] {
         if searchText.isEmpty {
             return countries
         }
@@ -21,18 +23,21 @@ struct AddCountryView: View {
     var body: some View {
         NavigationView {
             VStack {
-                List(filteredCountries, id: \.code) { country in
+                List(filteredCountries) { country in
                     Button(action: {
-                        let newCountry = Country(
-                            name: country.name,
-                            code: country.code,
-                            visitDate: selectedDate
-                        )
-                        viewModel.addCountry(newCountry)
+                        impactMed.impactOccurred()
+                        viewModel.addCountry(country)
                         dismiss()
                     }) {
-                        Text(country.name)
+                        HStack {
+                            Text(country.flag)
+                                .font(.title2)
+                            Text(country.name)
+                                .foregroundColor(.primary)
+                        }
                     }
+                    .disabled(viewModel.visitedCountries.contains(where: { $0.code == country.code }))
+                    .opacity(viewModel.visitedCountries.contains(where: { $0.code == country.code }) ? 0.5 : 1.0)
                 }
                 .searchable(text: $searchText, prompt: "Search countries")
                 
@@ -45,10 +50,14 @@ struct AddCountryView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
+                        impactMed.impactOccurred()
                         dismiss()
                     }
                 }
             }
+        }
+        .onAppear {
+            impactMed.prepare()
         }
     }
 } 
