@@ -8,8 +8,10 @@ struct AddDestinationView: View {
     @State private var citySearchText = ""
     @State private var filteredCities: [CityDataManager.CityData] = []
     @State private var isSearching = false
+    @State private var selectedDate = Date()
     
     private let searchDebouncer = Debouncer(delay: 0.3)
+    private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
     var body: some View {
         NavigationView {
@@ -22,8 +24,12 @@ struct AddDestinationView: View {
                 .padding()
                 
                 TabView(selection: $selectedTab) {
-                    CountrySearchView(searchText: $countrySearchText)
-                        .tag(0)
+                    CountrySearchView(
+                        searchText: $countrySearchText,
+                        selectedDate: $selectedDate,
+                        dismiss: dismiss
+                    )
+                    .tag(0)
                     
                     CitySearchView(
                         searchText: $citySearchText,
@@ -61,65 +67,9 @@ struct AddDestinationView: View {
 // MARK: - Supporting Views
 private struct CountrySearchView: View {
     @Binding var searchText: String
+    @Binding var selectedDate: Date
+    let dismiss: DismissAction
     @EnvironmentObject private var countriesViewModel: CountriesViewModel
-    
-    var body: some View {
-        List {
-            ForEach(countriesViewModel.searchCountries(searchText)) { country in
-                CountryRow(country: country)
-            }
-        }
-        .searchable(text: $searchText, prompt: "Search countries")
-        .listStyle(PlainListStyle())
-    }
-}
-
-private struct CitySearchView: View {
-    @Binding var searchText: String
-    let filteredCities: [CityDataManager.CityData]
-    let isSearching: Bool
-    @EnvironmentObject private var countriesViewModel: CountriesViewModel
-    
-    var body: some View {
-        List {
-            if isSearching {
-                ProgressView("Searching...")
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-                ForEach(filteredCities) { city in
-                    CityRow(city: city)
-                }
-            }
-        }
-        .searchable(text: $searchText, prompt: "Search cities globally")
-        .listStyle(PlainListStyle())
-    }
-}
-
-// MARK: - Helper Classes
-private class Debouncer {
-    private let delay: TimeInterval
-    private var workItem: DispatchWorkItem?
-    
-    init(delay: TimeInterval) {
-        self.delay = delay
-    }
-    
-    func debounce(action: @escaping () -> Void) {
-        workItem?.cancel()
-        let newWorkItem = DispatchWorkItem(block: action)
-        workItem = newWorkItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: newWorkItem)
-    }
-}
-
-// MARK: - Country Search View
-private struct CountrySearchView: View {
-    @EnvironmentObject var viewModel: CountriesViewModel
-    @Environment(\.dismiss) var dismiss
-    @Binding var searchText: String
-    @State private var selectedDate = Date()
-    
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
     private let countries: [Country] = {
@@ -143,15 +93,17 @@ private struct CountrySearchView: View {
     
     var body: some View {
         VStack {
-            List(filteredCountries) { country in
-                CountryRowView(
-                    country: country,
-                    isDisabled: viewModel.visitedCountries.contains(where: { $0.code == country.code }),
-                    onSelect: {
-                        addCountry(country)
-                        dismiss()
-                    }
-                )
+            List {
+                ForEach(filteredCountries) { country in
+                    CountryRowView(
+                        country: country,
+                        isDisabled: countriesViewModel.visitedCountries.contains(where: { $0.code == country.code }),
+                        onSelect: {
+                            addCountry(country)
+                            dismiss()
+                        }
+                    )
+                }
             }
             .searchable(text: $searchText, prompt: "Search countries")
             
@@ -169,44 +121,43 @@ private struct CountrySearchView: View {
             visitDate: selectedDate,
             coordinates: []
         )
-        viewModel.addCountry(newCountry)
+        countriesViewModel.addCountry(newCountry)
     }
 }
 
-// MARK: - Simplified City Search View
-private struct SimplifiedCitySearchView: View {
-    @EnvironmentObject var viewModel: CountriesViewModel
-    @Environment(\.dismiss) var dismiss
+private struct CitySearchView: View {
     @Binding var searchText: String
+    let filteredCities: [CityDataManager.CityData]
+    let isSearching: Bool
+    @EnvironmentObject private var countriesViewModel: CountriesViewModel
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedDate = Date()
-    @State private var cities: [CityDataManager.CityData] = []
-    
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
     var body: some View {
         VStack {
             List {
-                ForEach(cities) { city in
-                    CityRowView(
-                        cityData: city,
-                        isDisabled: viewModel.visitedCities.contains(where: { visitedCity in
-                            visitedCity.cityData?.name == city.name && 
-                            visitedCity.countryCode == city.countryCode
-                        }),
-                        onSelect: {
-                            addCity(city)
-                            dismiss()
-                        }
-                    )
+                if isSearching {
+                    ProgressView("Searching...")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    ForEach(filteredCities) { city in
+                        CityRowView(
+                            cityData: city,
+                            isDisabled: countriesViewModel.visitedCities.contains(where: { visitedCity in
+                                visitedCity.cityData?.name == city.name && 
+                                visitedCity.countryCode == city.countryCode
+                            }),
+                            onSelect: {
+                                addCity(city)
+                                dismiss()
+                            }
+                        )
+                    }
                 }
             }
-            .searchable(text: $searchText, prompt: "Search cities worldwide")
-            .onChange(of: searchText) { _ in
-                updateCities()
-            }
-            .onAppear {
-                updateCities()
-            }
+            .searchable(text: $searchText, prompt: "Search cities globally")
+            .listStyle(PlainListStyle())
             
             DatePicker("Visit Date", selection: $selectedDate, displayedComponents: .date)
                 .datePickerStyle(.compact)
@@ -214,15 +165,11 @@ private struct SimplifiedCitySearchView: View {
         }
     }
     
-    private func updateCities() {
-        cities = CityDataManager.shared.searchCities(query: searchText)
-    }
-    
     private func addCity(_ cityData: CityDataManager.CityData) {
         impactMed.impactOccurred()
         
         // If the country isn't visited yet, add it
-        if !viewModel.visitedCountries.contains(where: { $0.code == cityData.countryCode }) {
+        if !countriesViewModel.visitedCountries.contains(where: { $0.code == cityData.countryCode }) {
             if let countryName = Locale.current.localizedString(forRegionCode: cityData.countryCode) {
                 let country = Country(
                     name: countryName,
@@ -230,7 +177,7 @@ private struct SimplifiedCitySearchView: View {
                     visitDate: selectedDate,
                     coordinates: []
                 )
-                viewModel.addCountry(country)
+                countriesViewModel.addCountry(country)
             }
         }
         
@@ -240,7 +187,24 @@ private struct SimplifiedCitySearchView: View {
             countryCode: cityData.countryCode,
             visitDate: selectedDate
         )
-        viewModel.addVisitedCity(visitedCity)
+        countriesViewModel.addVisitedCity(visitedCity)
+    }
+}
+
+// MARK: - Helper Classes
+private class Debouncer {
+    private let delay: TimeInterval
+    private var workItem: DispatchWorkItem?
+    
+    init(delay: TimeInterval) {
+        self.delay = delay
+    }
+    
+    func debounce(action: @escaping () -> Void) {
+        workItem?.cancel()
+        let newWorkItem = DispatchWorkItem(block: action)
+        workItem = newWorkItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: newWorkItem)
     }
 }
 

@@ -40,9 +40,9 @@ class CountriesViewModel: ObservableObject {
     private func loadCountries() {
         if let data = UserDefaults.standard.data(forKey: countriesSaveKey) {
             if let decoded = try? JSONDecoder().decode([Country].self, from: data) {
-                visitedCountries = decoded
-            }
+            visitedCountries = decoded
         }
+    }
     }
     
     // MARK: - City Methods

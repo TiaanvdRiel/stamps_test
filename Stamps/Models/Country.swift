@@ -15,7 +15,7 @@ struct Country: Identifiable, Codable, Equatable, Hashable {
     var flag: String {
         // Convert country code to flag emoji
         let base: UInt32 = 127397 // This is the Unicode offset for regional indicator symbols
-        var flagString = ""I
+        var flagString = ""
         
         // Convert two-letter country code to flag emoji
         for scalar in code.uppercased().unicodeScalars {
