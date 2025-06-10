@@ -3,12 +3,14 @@ import MapKit
 
 struct ContentView: View {
     @StateObject private var viewModel = CountriesViewModel()
+    @StateObject private var polygonManager = CountryPolygonManager()
     @State private var showingAddSheet = false
     
     var body: some View {
         ZStack {
-            MapView()
+            MapView(visitedCountries: viewModel.visitedCountries)
                 .environmentObject(viewModel)
+                .environmentObject(polygonManager)
                 .ignoresSafeArea()
             
             BottomSheetView(viewModel: viewModel, showingAddSheet: $showingAddSheet)
@@ -217,29 +219,5 @@ struct StatView: View {
             Text(value)
                 .font(.headline)
         }
-    }
-}
-
-struct CountryRow: View {
-    let country: Country
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(country.name)
-                    .font(.headline)
-                Text(country.visitDate.formatted(date: .abbreviated, time: .omitted))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
     }
 }

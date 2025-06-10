@@ -6,10 +6,17 @@ struct AddCountryView: View {
     @State private var searchText = ""
     @State private var selectedDate = Date()
     
-    private let countries: [Country] = Locale.isoRegionCodes.compactMap { code in
-        guard let name = Locale.current.localizedString(forRegionCode: code) else { return nil }
-        return Country(name: name, code: code)
-    }.sorted { $0.name < $1.name }
+    private let countries: [Country] = {
+        Locale.isoRegionCodes.compactMap { code -> Country? in
+            guard let name = Locale.current.localizedString(forRegionCode: code) else { return nil }
+            return Country(
+                name: name,
+                code: code,
+                visitDate: Date(),
+                coordinates: []
+            )
+        }.sorted { $0.name < $1.name }
+    }()
     
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
@@ -26,7 +33,13 @@ struct AddCountryView: View {
                 List(filteredCountries) { country in
                     Button(action: {
                         impactMed.impactOccurred()
-                        viewModel.addCountry(country)
+                        let newCountry = Country(
+                            name: country.name,
+                            code: country.code,
+                            visitDate: selectedDate,
+                            coordinates: []
+                        )
+                        viewModel.addCountry(newCountry)
                         dismiss()
                     }) {
                         HStack {

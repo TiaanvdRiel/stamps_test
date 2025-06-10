@@ -8,6 +8,14 @@ struct MapView: UIViewRepresentable {
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
+        
+        // Set initial region to show most of the world
+        let initialRegion = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 20, longitude: 0),
+            span: MKCoordinateSpan(latitudeDelta: 150, longitudeDelta: 150)
+        )
+        mapView.setRegion(initialRegion, animated: false)
+        
         return mapView
     }
     
@@ -18,7 +26,9 @@ struct MapView: UIViewRepresentable {
         // Add overlays for visited countries
         for country in visitedCountries {
             let polygons = polygonManager.polygonsForCountry(country.name)
-            mapView.addOverlays(polygons)
+            if !polygons.isEmpty {
+                mapView.addOverlays(polygons)
+            }
         }
     }
     
