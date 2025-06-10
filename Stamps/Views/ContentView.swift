@@ -30,14 +30,13 @@ struct ContentView: View {
 struct BottomSheetView: View {
     @ObservedObject var viewModel: CountriesViewModel
     @Binding var showingAddSheet: Bool
-    @State private var translation: CGFloat = 0
-    @State private var offset: CGFloat = 0  // Start at 0 (collapsed)
-    @State private var isDragging = false
+    @State private var offset: CGFloat = 0
+    @State private var lastOffset: CGFloat = 0
+    @GestureState private var translation: CGFloat = 0
+    @State private var isDragging: Bool = false
     
-    // Snap points matching Apple Maps
-    private let collapsedHeight: CGFloat = 100
-    private let halfHeight: CGFloat = UIScreen.main.bounds.height * 0.5
-    private let fullHeight: CGFloat = UIScreen.main.bounds.height * 0.9
+    private let minHeight: CGFloat = 100
+    private let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.85
     
     var body: some View {
         GeometryReader { geometry in
@@ -64,32 +63,65 @@ struct BottomSheetView: View {
                         .frame(width: 40, height: 5)
                         .padding(.top, 10)
                         .padding(.bottom, 5)
-                    
-                    // Content
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Stats Row
-                        HStack(spacing: 30) {
-                            StatView(title: "Countries", value: "\(viewModel.totalCountries)")
-                            if let lastVisit = viewModel.lastVisit {
-                                StatView(title: "Last Visit", value: lastVisit.formatted(date: .abbreviated, time: .omitted))
-                            }
-                            if let region = viewModel.mostVisitedRegion {
-                                StatView(title: "Top Region", value: region)
-                            }
-                        }
-                        .padding(.horizontal)
-                        
-                        if !viewModel.visitedCountries.isEmpty {
-                            // Countries List
-                            List {
-                                ForEach(viewModel.visitedCountries) { country in
-                                    CountryRow(country: country)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                if offset == 0 {
+                                    offset = -maxHeight/2
+                                } else {
+                                    offset = 0
                                 }
                             }
-                            .listStyle(PlainListStyle())
                         }
+                    
+                    // Content
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            // Title
+                            Text("My Passport")
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .padding(.horizontal)
+                            
+                            // Stats Row
+                            HStack(spacing: 30) {
+                                StatView(title: "Countries", value: "\(viewModel.totalCountries)")
+                                if let lastVisit = viewModel.lastVisit {
+                                    StatView(title: "Last Visit", value: lastVisit.formatted(date: .abbreviated, time: .omitted))
+                                }
+                            }
+                            .padding(.horizontal)
+                            
+                            if viewModel.visitedCountries.isEmpty {
+                                // Empty State
+                                Spacer()
+                                Text("No destinations added")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.top, 40)
+                                Spacer()
+                            } else {
+                                // Countries List
+                                VStack(spacing: 0) {
+                                    ForEach(viewModel.visitedCountries) { country in
+                                        CountryRow(country: country)
+                                        if country.id != viewModel.visitedCountries.last?.id {
+                                            Divider()
+                                                .padding(.horizontal)
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                            }
+                        }
+                        .padding(.bottom, geometry.safeAreaInsets.bottom + 20)
                     }
-                    .padding(.bottom)
+                    .simultaneousGesture(
+                        DragGesture()
+                            .onChanged { _ in
+                                isDragging = true
+                            }
+                    )
                 }
                 .frame(maxWidth: .infinity)
                 .background(
@@ -103,48 +135,49 @@ struct BottomSheetView: View {
                 )
             }
             .frame(maxHeight: .infinity, alignment: .bottom)
-            .offset(y: max(-fullHeight, min(0, offset + translation)))
+            .offset(y: max(-maxHeight, min(0, offset + translation)))
             .gesture(
                 DragGesture()
-                    .onChanged { value in
-                        isDragging = true
-                        // Allow dragging in both directions
-                        translation = value.translation.height
+                    .updating($translation) { value, state, _ in
+                        if !isDragging {
+                            state = value.translation.height
+                        }
                     }
                     .onEnded { value in
                         isDragging = false
                         let velocity = value.predictedEndLocation.y - value.location.y
                         let shouldSnap = abs(velocity) > 100
                         
-                        let currentOffset = offset + translation
+                        let currentOffset = offset + value.translation.height
+                        let snapPoints = [0, -maxHeight/2, -maxHeight]
                         
-                        if shouldSnap {
-                            if velocity > 0 {
-                                // Moving down - snap to closest lower point
-                                if currentOffset > -halfHeight {
-                                    offset = 0
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if shouldSnap {
+                                if velocity > 0 {
+                                    // Moving down
+                                    if currentOffset > -maxHeight/2 {
+                                        offset = 0
+                                    } else {
+                                        offset = -maxHeight/2
+                                    }
                                 } else {
-                                    offset = -halfHeight
+                                    // Moving up
+                                    if currentOffset < -maxHeight/2 {
+                                        offset = -maxHeight
+                                    } else {
+                                        offset = -maxHeight/2
+                                    }
                                 }
                             } else {
-                                // Moving up - snap to closest higher point
-                                if currentOffset < -halfHeight {
-                                    offset = -fullHeight
-                                } else {
-                                    offset = -halfHeight
-                                }
+                                // Find closest snap point
+                                let closest = snapPoints.min(by: { abs($0 - currentOffset) < abs($1 - currentOffset) }) ?? 0
+                                offset = closest
                             }
-                        } else {
-                            // Find closest snap point
-                            let snapPoints = [0, -halfHeight, -fullHeight]
-                            let closest = snapPoints.min(by: { abs($0 - currentOffset) < abs($1 - currentOffset) }) ?? 0
-                            offset = closest
                         }
                         
-                        translation = 0
+                        lastOffset = offset
                     }
             )
-            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.8), value: isDragging)
         }
         .ignoresSafeArea(edges: .bottom)
     }
@@ -184,6 +217,7 @@ struct CountryRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+        .padding(.horizontal)
         .padding(.vertical, 8)
     }
 }
