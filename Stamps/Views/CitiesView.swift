@@ -18,62 +18,86 @@ struct CitiesView: View {
     var body: some View {
         NavigationView {
             VStack {
-                List(filteredCities) { cityData in
-                    Button(action: {
-                        impactMed.impactOccurred()
-                        let city = City(
-                            name: cityData.name,
-                            countryCode: cityData.countryCode,
-                            visitDate: selectedDate,
-                            coordinates: cityData.coordinates,
-                            population: cityData.population,
-                            region: cityData.region
-                        )
-                        viewModel.addCity(city)
-                        dismiss()
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(cityData.name)
-                                    .font(.headline)
-                                if let region = cityData.region {
-                                    Text(region)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            Spacer()
-                            if let population = cityData.population {
-                                Text("\(population)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .disabled(viewModel.visitedCities.contains(where: { $0.name == cityData.name && $0.countryCode == cityData.countryCode }))
-                    .opacity(viewModel.visitedCities.contains(where: { $0.name == cityData.name && $0.countryCode == cityData.countryCode }) ? 0.5 : 1.0)
-                }
-                .searchable(text: $searchText, prompt: "Search cities")
-                
-                DatePicker("Visit Date", selection: $selectedDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .padding()
+                citiesList
+                datePicker
             }
             .navigationTitle("Add City")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        impactLight.impactOccurred()
-                        dismiss()
-                    }
-                }
-            }
+            .toolbar { toolbarContent }
         }
         .onAppear {
             impactMed.prepare()
             impactLight.prepare()
         }
+    }
+    
+    private var citiesList: some View {
+        List(filteredCities) { cityData in
+            CityRowView(
+                cityData: cityData,
+                isDisabled: viewModel.visitedCities.contains(where: { visitedCity in
+                    visitedCity.cityData?.name == cityData.name && visitedCity.countryCode == cityData.countryCode 
+                }),
+                onSelect: { addCity(cityData) }
+            )
+        }
+        .searchable(text: $searchText, prompt: "Search cities")
+    }
+    
+    private var datePicker: some View {
+        DatePicker("Visit Date", selection: $selectedDate, displayedComponents: .date)
+            .datePickerStyle(.compact)
+            .padding()
+    }
+    
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button("Cancel") {
+                impactLight.impactOccurred()
+                dismiss()
+            }
+        }
+    }
+    
+    private func addCity(_ cityData: CityManager.CityData) {
+        impactMed.impactOccurred()
+        let visitedCity = VisitedCity(
+            cityDataId: cityData.id,
+            countryCode: cityData.countryCode,
+            visitDate: selectedDate
+        )
+        viewModel.addVisitedCity(visitedCity)
+        dismiss()
+    }
+}
+
+private struct CityRowView: View {
+    let cityData: CityManager.CityData
+    let isDisabled: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(cityData.name)
+                        .font(.headline)
+                    if let region = cityData.region {
+                        Text(region)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                if let population = cityData.population {
+                    Text("\(population)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.5 : 1.0)
     }
 } 

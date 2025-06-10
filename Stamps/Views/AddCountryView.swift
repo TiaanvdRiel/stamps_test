@@ -6,6 +6,8 @@ struct AddCountryView: View {
     @State private var searchText = ""
     @State private var selectedDate = Date()
     
+    private let impactMed = UIImpactFeedbackGenerator(style: .medium)
+    
     private let countries: [Country] = {
         Locale.isoRegionCodes.compactMap { code -> Country? in
             guard let name = Locale.current.localizedString(forRegionCode: code) else { return nil }
@@ -18,8 +20,6 @@ struct AddCountryView: View {
         }.sorted { $0.name < $1.name }
     }()
     
-    private let impactMed = UIImpactFeedbackGenerator(style: .medium)
-    
     var filteredCountries: [Country] {
         if searchText.isEmpty {
             return countries
@@ -30,47 +30,72 @@ struct AddCountryView: View {
     var body: some View {
         NavigationView {
             VStack {
-                List(filteredCountries) { country in
-                    Button(action: {
-                        impactMed.impactOccurred()
-                        let newCountry = Country(
-                            name: country.name,
-                            code: country.code,
-                            visitDate: selectedDate,
-                            coordinates: []
-                        )
-                        viewModel.addCountry(newCountry)
-                        dismiss()
-                    }) {
-                        HStack {
-                            Text(country.flag)
-                                .font(.title2)
-                            Text(country.name)
-                                .foregroundColor(.primary)
-                        }
-                    }
-                    .disabled(viewModel.visitedCountries.contains(where: { $0.code == country.code }))
-                    .opacity(viewModel.visitedCountries.contains(where: { $0.code == country.code }) ? 0.5 : 1.0)
-                }
-                .searchable(text: $searchText, prompt: "Search countries")
-                
-                DatePicker("Visit Date", selection: $selectedDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .padding()
+                countriesList
+                datePicker
             }
             .navigationTitle("Add Country")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        impactMed.impactOccurred()
-                        dismiss()
-                    }
-                }
-            }
+            .toolbar { toolbarContent }
         }
         .onAppear {
             impactMed.prepare()
         }
+    }
+    
+    private var countriesList: some View {
+        List(filteredCountries) { country in
+            CountryRowView(
+                country: country,
+                isDisabled: viewModel.visitedCountries.contains(where: { $0.code == country.code }),
+                onSelect: { addCountry(country) }
+            )
+        }
+        .searchable(text: $searchText, prompt: "Search countries")
+    }
+    
+    private var datePicker: some View {
+        DatePicker("Visit Date", selection: $selectedDate, displayedComponents: .date)
+            .datePickerStyle(.compact)
+            .padding()
+    }
+    
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button("Cancel") {
+                impactMed.impactOccurred()
+                dismiss()
+            }
+        }
+    }
+    
+    private func addCountry(_ country: Country) {
+        impactMed.impactOccurred()
+        let newCountry = Country(
+            name: country.name,
+            code: country.code,
+            visitDate: selectedDate,
+            coordinates: []
+        )
+        viewModel.addCountry(newCountry)
+        dismiss()
+    }
+}
+
+private struct CountryRowView: View {
+    let country: Country
+    let isDisabled: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack {
+                Text(country.flag)
+                    .font(.title2)
+                Text(country.name)
+                    .foregroundColor(.primary)
+            }
+        }
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.5 : 1.0)
     }
 } 

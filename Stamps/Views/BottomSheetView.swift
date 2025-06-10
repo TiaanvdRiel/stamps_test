@@ -28,69 +28,84 @@ internal struct BottomSheetView: View {
             let midY = maxHeight - middleHeight
             let collapsedY = maxHeight - collapsedHeight
             
-            ZStack(alignment: .topTrailing) {
-                AddButton(showingAddSheet: $showingAddSheet, impactMed: impactMed)
-                
-                VStack(spacing: 0) {
-                    SheetHeaderView(
-                        impactLight: impactLight,
-                        onCloseButtonTap: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                currentHeight = collapsedY
-                            }
-                        }
-                    )
-                    
-                    ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 20) {
-                            Text("My Passport")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .padding(.horizontal)
-                            
-                            ProgressCircleView(
-                                progress: progress,
-                                totalCountries: viewModel.totalCountries
-                            )
-                            
-                            if viewModel.visitedCountries.isEmpty {
-                                EmptyStateView()
-                            } else {
-                                CountryListView(viewModel: viewModel)
-                            }
-                        }
-                        .padding(.bottom, geometry.safeAreaInsets.bottom + 20)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: expandedHeight, alignment: .top)
-                .background(
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(.ultraThinMaterial)
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color(UIColor.systemBackground).opacity(0.8))
-                    }
-                )
-            }
-            .frame(maxHeight: .infinity, alignment: .bottom)
-            .offset(y: max(minY, min(collapsedY, (currentHeight == 0 ? collapsedY : currentHeight) + dragOffset)))
-            .gesture(
-                DragGesture()
-                    .updating($dragOffset) { value, state, _ in
-                        state = value.translation.height
-                    }
-                    .onEnded { value in
-                        handleDragGesture(value: value, geometry: geometry)
-                    }
-            )
-            .onAppear {
-                setupInitialState(geometry: geometry)
-            }
-            .ignoresSafeArea(edges: .bottom)
+            mainContent(geometry: geometry, minY: minY, midY: midY, collapsedY: collapsedY)
         }
     }
     
-    // MARK: - Helper Methods
+    // MARK: - View Components
+    @ViewBuilder
+    private func mainContent(geometry: GeometryProxy, minY: CGFloat, midY: CGFloat, collapsedY: CGFloat) -> some View {
+        ZStack(alignment: .topTrailing) {
+            AddButton(showingAddSheet: $showingAddSheet, impactMed: impactMed)
+            sheetContent(geometry: geometry, collapsedY: collapsedY)
+        }
+        .frame(maxHeight: .infinity, alignment: .bottom)
+        .offset(y: max(minY, min(collapsedY, (currentHeight == 0 ? collapsedY : currentHeight) + dragOffset)))
+        .gesture(createDragGesture(geometry: geometry))
+        .onAppear { setupInitialState(geometry: geometry) }
+        .ignoresSafeArea(edges: .bottom)
+    }
+    
+    @ViewBuilder
+    private func sheetContent(geometry: GeometryProxy, collapsedY: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            SheetHeaderView(
+                impactLight: impactLight,
+                onCloseButtonTap: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        currentHeight = collapsedY
+                    }
+                }
+            )
+            
+            ScrollView(showsIndicators: false) {
+                sheetScrollContent
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: expandedHeight, alignment: .top)
+        .background(sheetBackground)
+    }
+    
+    private var sheetScrollContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("My Passport")
+                .font(.title)
+                .fontWeight(.bold)
+                .padding(.horizontal)
+            
+            ProgressCircleView(
+                progress: progress,
+                totalCountries: viewModel.totalCountries
+            )
+            
+            if viewModel.visitedCountries.isEmpty {
+                EmptyStateView()
+            } else {
+                CountryListView(viewModel: viewModel)
+            }
+        }
+    }
+    
+    private var sheetBackground: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(UIColor.systemBackground).opacity(0.8))
+        }
+    }
+    
+    // MARK: - Gesture Handling
+    private func createDragGesture(geometry: GeometryProxy) -> some Gesture {
+        DragGesture()
+            .updating($dragOffset) { value, state, _ in
+                state = value.translation.height
+            }
+            .onEnded { value in
+                handleDragGesture(value: value, geometry: geometry)
+            }
+    }
+    
     private func handleDragGesture(value: DragGesture.Value, geometry: GeometryProxy) {
         let maxHeight = geometry.size.height
         let minY = maxHeight - expandedHeight

@@ -9,40 +9,25 @@ struct VisitedCitiesView: View {
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     
     var body: some View {
+        citiesList
+            .navigationTitle(country.name)
+            .toolbar { toolbarContent }
+            .sheet(isPresented: $showingAddCity) {
+                CitySelectionView(country: country)
+            }
+    }
+    
+    private var citiesList: some View {
         List {
             Section {
                 ForEach(viewModel.citiesForCountry(country.code)) { visitedCity in
                     if let cityData = visitedCity.cityData {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(cityData.name)
-                                    .font(.headline)
-                                if let region = cityData.region {
-                                    Text(region)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                                Text(visitedCity.formattedDate)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            if let population = cityData.population {
-                                Text(formatPopulation(population))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                impactMed.impactOccurred()
-                                viewModel.removeVisitedCity(visitedCity)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                        CityRowView(
+                            cityData: cityData,
+                            visitedCity: visitedCity,
+                            impactMed: impactMed,
+                            onDelete: { viewModel.removeVisitedCity(visitedCity) }
+                        )
                     }
                 }
             } header: {
@@ -51,19 +36,56 @@ struct VisitedCitiesView: View {
                 Text("\(viewModel.citiesForCountry(country.code).count) cities visited")
             }
         }
-        .navigationTitle(country.name)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    impactLight.impactOccurred()
-                    showingAddCity = true
-                } label: {
-                    Image(systemName: "plus")
-                }
+    }
+    
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button {
+                impactLight.impactOccurred()
+                showingAddCity = true
+            } label: {
+                Image(systemName: "plus")
             }
         }
-        .sheet(isPresented: $showingAddCity) {
-            CitySelectionView(country: country)
+    }
+}
+
+private struct CityRowView: View {
+    let cityData: CityDataManager.CityData
+    let visitedCity: VisitedCity
+    let impactMed: UIImpactFeedbackGenerator
+    let onDelete: () -> Void
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(cityData.name)
+                    .font(.headline)
+                if let region = cityData.region {
+                    Text(region)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Text(visitedCity.formattedDate)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            if let population = cityData.population {
+                Text(formatPopulation(population))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                impactMed.impactOccurred()
+                onDelete()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
     
