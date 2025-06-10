@@ -7,6 +7,7 @@ class CityDataManager {
     private var allCities: [CityData] = []
     private var citiesByCountry: [String: [CityData]] = [:]
     private var topCities: [CityData] = []
+    private var searchIndex: [String: Set<String>] = [:] // Search index mapping lowercase terms to city IDs
     
     struct CityData: Codable, Identifiable, Hashable {
         let id: String
@@ -30,6 +31,22 @@ class CityDataManager {
                 return "\(name), \(region)"
             }
             return name
+        }
+        
+        // Search terms for this city
+        var searchTerms: Set<String> {
+            var terms = Set<String>()
+            // Add name terms
+            name.lowercased().split(separator: " ").forEach { terms.insert(String($0)) }
+            // Add region terms if available
+            if let region = region?.lowercased() {
+                region.split(separator: " ").forEach { terms.insert(String($0)) }
+            }
+            // Add country name
+            if let countryName = Locale.current.localizedString(forRegionCode: countryCode)?.lowercased() {
+                countryName.split(separator: " ").forEach { terms.insert(String($0)) }
+            }
+            return terms
         }
     }
     
@@ -58,9 +75,26 @@ class CityDataManager {
                 .prefix(100)
                 .map { $0 }
             
+            // Build search index
+            buildSearchIndex()
+            
             print("Loaded \(citiesData.cities.count) cities")
         } catch {
             print("Error loading city data: \(error)")
+        }
+    }
+    
+    private func buildSearchIndex() {
+        searchIndex.removeAll()
+        
+        for city in allCities {
+            // Get all search terms for this city
+            let terms = city.searchTerms
+            
+            // Add city ID to each term's set
+            for term in terms {
+                searchIndex[term, default: Set()].insert(city.id)
+            }
         }
     }
     
@@ -81,17 +115,42 @@ class CityDataManager {
             return topCities
         }
         
-        let searchQuery = query.lowercased()
+        let searchTerms = query.lowercased().split(separator: " ").map(String.init)
         
-        // Search with a limit to prevent performance issues
-        return allCities
-            .filter { city in
-                city.name.lowercased().contains(searchQuery) ||
-                (city.region?.lowercased().contains(searchQuery) ?? false) ||
-                (Locale.current.localizedString(forRegionCode: city.countryCode)?.lowercased().contains(searchQuery) ?? false)
+        // Get matching city IDs for each search term
+        var matchingIds: Set<String>?
+        
+        for term in searchTerms {
+            // Find cities that match this term
+            let termMatches = searchIndex.filter { key, _ in
+                key.contains(term)
+            }.values.reduce(into: Set<String>()) { result, ids in
+                result.formUnion(ids)
             }
-            .prefix(100)
+            
+            // Intersect with previous results if any
+            if let existing = matchingIds {
+                matchingIds = existing.intersection(termMatches)
+            } else {
+                matchingIds = termMatches
+            }
+            
+            // Early exit if no matches
+            if matchingIds?.isEmpty ?? true {
+                return []
+            }
+        }
+        
+        // Convert matching IDs back to cities
+        let matchingCities = (matchingIds ?? []).compactMap { id in
+            allCities.first { $0.id == id }
+        }
+        
+        // Sort by population and limit results
+        return matchingCities
             .sorted { ($0.population ?? 0) > ($1.population ?? 0) }
+            .prefix(100)
+            .map { $0 }
     }
     
     func searchCities(countryCode: String, query: String) -> [CityData] {
@@ -104,11 +163,12 @@ class CityDataManager {
                 .map { $0 }
         }
         
-        let searchQuery = query.lowercased()
+        let searchTerms = query.lowercased().split(separator: " ")
         return countryCities
             .filter { city in
-                city.name.lowercased().contains(searchQuery) ||
-                (city.region?.lowercased().contains(searchQuery) ?? false)
+                searchTerms.allSatisfy { term in
+                    city.searchTerms.contains(where: { $0.contains(String(term)) })
+                }
             }
             .prefix(100)
             .sorted { ($0.population ?? 0) > ($1.population ?? 0) }

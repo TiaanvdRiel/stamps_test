@@ -34,7 +34,9 @@ struct AddDestinationView: View {
                     CitySearchView(
                         searchText: $citySearchText,
                         filteredCities: filteredCities,
-                        isSearching: isSearching
+                        isSearching: isSearching,
+                        selectedDate: $selectedDate,
+                        dismiss: dismiss
                     )
                     .tag(1)
                 }
@@ -53,13 +55,27 @@ struct AddDestinationView: View {
         .onChange(of: citySearchText) { newValue in
             isSearching = true
             searchDebouncer.debounce {
-                filteredCities = CityDataManager.shared.searchCities(query: newValue)
-                isSearching = false
+                Task {
+                    await performSearch(query: newValue)
+                }
             }
         }
-        .onAppear {
+        .task {
             // Load initial top cities
             filteredCities = CityDataManager.shared.searchCities(query: "")
+        }
+    }
+    
+    private func performSearch(query: String) async {
+        // Perform search on background thread
+        let results = await Task.detached(priority: .userInitiated) { 
+            CityDataManager.shared.searchCities(query: query)
+        }.value
+        
+        // Update UI on main thread
+        await MainActor.run {
+            filteredCities = results
+            isSearching = false
         }
     }
 }
@@ -129,9 +145,9 @@ private struct CitySearchView: View {
     @Binding var searchText: String
     let filteredCities: [CityDataManager.CityData]
     let isSearching: Bool
+    @Binding var selectedDate: Date
+    let dismiss: DismissAction
     @EnvironmentObject private var countriesViewModel: CountriesViewModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedDate = Date()
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
     var body: some View {
@@ -140,6 +156,10 @@ private struct CitySearchView: View {
                 if isSearching {
                     ProgressView("Searching...")
                         .frame(maxWidth: .infinity, alignment: .center)
+                } else if filteredCities.isEmpty && !searchText.isEmpty {
+                    Text("No cities found")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .foregroundColor(.secondary)
                 } else {
                     ForEach(filteredCities) { city in
                         CityRowView(
@@ -175,9 +195,18 @@ private struct CitySearchView: View {
                     name: countryName,
                     code: cityData.countryCode,
                     visitDate: selectedDate,
-                    coordinates: []
+                    coordinates: [cityData.coordinates.clCoordinate]
                 )
                 countriesViewModel.addCountry(country)
+            }
+        } else if let existingCountry = countriesViewModel.visitedCountries.first(where: { $0.code == cityData.countryCode }) {
+            // If the country exists but doesn't have coordinates, update them
+            if existingCountry.coordinates.isEmpty {
+                var updatedCountry = existingCountry
+                updatedCountry.coordinates = [cityData.coordinates.clCoordinate]
+                // Remove and re-add to trigger update
+                countriesViewModel.removeCountry(existingCountry)
+                countriesViewModel.addCountry(updatedCountry)
             }
         }
         
@@ -188,6 +217,7 @@ private struct CitySearchView: View {
             visitDate: selectedDate
         )
         countriesViewModel.addVisitedCity(visitedCity)
+        dismiss()
     }
 }
 
