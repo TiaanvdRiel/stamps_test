@@ -11,16 +11,14 @@ internal struct AddButton: View {
             showingAddSheet = true
         }) {
             Image(systemName: "plus")
-                .font(.system(size: 20, weight: .semibold))
+                .font(.title2.weight(.semibold))
                 .foregroundColor(.white)
-                .frame(width: 50, height: 50)
-                .background(Color.blue)
+                .frame(width: 56, height: 56)
+                .background(Color.accentColor)
                 .clipShape(Circle())
-                .shadow(radius: 2)
+                .shadow(radius: 4, x: 0, y: 2)
         }
-        .padding(.trailing, 20)
-        .padding(.bottom, 20)
-        .offset(y: -70)
+        .padding(.horizontal)
     }
 }
 

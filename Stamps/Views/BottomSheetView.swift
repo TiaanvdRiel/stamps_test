@@ -1,9 +1,17 @@
 import SwiftUI
 import MapKit
 
-internal struct BottomSheetView: View {
-    @ObservedObject var viewModel: CountriesViewModel
-    @Binding var showingAddSheet: Bool
+enum SheetPosition {
+    case collapsed
+    case middle
+    case expanded
+}
+
+struct BottomSheetView<Content: View>: View {
+    @Binding var position: SheetPosition
+    let maxHeight: CGFloat
+    let content: Content
+    
     @State private var currentHeight: CGFloat = 0
     @GestureState private var dragOffset: CGFloat = 0
     @State private var previousDragValue: DragGesture.Value?
@@ -13,23 +21,24 @@ internal struct BottomSheetView: View {
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     
     // MARK: - Constants
-    private let totalCountries = 195
     private var collapsedHeight: CGFloat { 120 }
-    private var middleHeight: CGFloat { UIScreen.main.bounds.height * 0.45 }
-    private var expandedHeight: CGFloat { UIScreen.main.bounds.height * 0.85 }
+    private var middleHeight: CGFloat { maxHeight * 0.6 }
+    private var expandedHeight: CGFloat { maxHeight }
     private let snapThreshold: CGFloat = 50
     private let velocityThreshold: CGFloat = 300
     
-    private var progress: Double {
-        Double(viewModel.totalCountries) / Double(totalCountries)
+    init(position: Binding<SheetPosition>, maxHeight: CGFloat, @ViewBuilder content: () -> Content) {
+        self._position = position
+        self.maxHeight = maxHeight
+        self.content = content()
     }
     
     var body: some View {
         GeometryReader { geometry in
-            let maxHeight = geometry.size.height
-            let minY = maxHeight - expandedHeight
-            let midY = maxHeight - middleHeight
-            let collapsedY = maxHeight - collapsedHeight
+            let maxScreenHeight = geometry.size.height
+            let minY = maxScreenHeight - expandedHeight
+            let midY = maxScreenHeight - middleHeight
+            let collapsedY = maxScreenHeight - collapsedHeight
             
             mainContent(geometry: geometry, minY: minY, midY: midY, collapsedY: collapsedY)
         }
@@ -38,35 +47,30 @@ internal struct BottomSheetView: View {
     // MARK: - View Components
     @ViewBuilder
     private func mainContent(geometry: GeometryProxy, minY: CGFloat, midY: CGFloat, collapsedY: CGFloat) -> some View {
-        ZStack(alignment: .topTrailing) {
-            AddButton(showingAddSheet: $showingAddSheet, impactMed: impactMed)
-            sheetContent(geometry: geometry, collapsedY: collapsedY)
-        }
-        .frame(maxHeight: .infinity, alignment: .bottom)
-        .offset(y: max(minY, min(collapsedY, (currentHeight == 0 ? collapsedY : currentHeight) + dragOffset)))
-        .gesture(createDragGesture(geometry: geometry))
-        .onAppear { setupInitialState(geometry: geometry) }
-        .ignoresSafeArea(edges: .bottom)
-        .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: currentHeight)
-        .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: dragOffset)
-    }
-    
-    @ViewBuilder
-    private func sheetContent(geometry: GeometryProxy, collapsedY: CGFloat) -> some View {
         VStack(spacing: 0) {
             SheetHeaderView(
                 impactLight: impactLight,
                 onCloseButtonTap: {
                     withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+                        position = .collapsed
                         currentHeight = collapsedY
                     }
                 }
             )
             
-            PassportView()
-                .environmentObject(viewModel)
+            content
         }
         .background(sheetBackground)
+        .frame(maxHeight: .infinity, alignment: .bottom)
+        .offset(y: max(minY, min(collapsedY, (currentHeight == 0 ? collapsedY : currentHeight) + dragOffset)))
+        .gesture(createDragGesture(geometry: geometry))
+        .onAppear { setupInitialState(geometry: geometry) }
+        .onChange(of: position) { newPosition in
+            updateHeight(for: newPosition, geometry: geometry)
+        }
+        .ignoresSafeArea(edges: .bottom)
+        .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: currentHeight)
+        .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: dragOffset)
     }
     
     private var sheetBackground: some View {
@@ -80,10 +84,10 @@ internal struct BottomSheetView: View {
     
     // MARK: - Gesture Handling
     private func createDragGesture(geometry: GeometryProxy) -> some Gesture {
-        let maxHeight = geometry.size.height
-        let minY = maxHeight - expandedHeight
-        let midY = maxHeight - middleHeight
-        let collapsedY = maxHeight - collapsedHeight
+        let maxScreenHeight = geometry.size.height
+        let minY = maxScreenHeight - expandedHeight
+        let midY = maxScreenHeight - middleHeight
+        let collapsedY = maxScreenHeight - collapsedHeight
         
         return DragGesture(minimumDistance: 10)
             .updating($dragOffset) { value, state, _ in
@@ -98,10 +102,10 @@ internal struct BottomSheetView: View {
     }
     
     private func handleDragGesture(value: DragGesture.Value, geometry: GeometryProxy) {
-        let maxHeight = geometry.size.height
-        let minY = maxHeight - expandedHeight
-        let midY = maxHeight - middleHeight
-        let collapsedY = maxHeight - collapsedHeight
+        let maxScreenHeight = geometry.size.height
+        let minY = maxScreenHeight - expandedHeight
+        let midY = maxScreenHeight - middleHeight
+        let collapsedY = maxScreenHeight - collapsedHeight
         
         let currentY = (currentHeight == 0 ? collapsedY : currentHeight)
         let targetY = currentY + value.translation.height
@@ -113,6 +117,7 @@ internal struct BottomSheetView: View {
         
         // Determine target position based on velocity and position
         var newHeight: CGFloat
+        var newPosition: SheetPosition
         
         if abs(velocity) > velocityThreshold {
             // Fast drag - move to next position in drag direction
@@ -120,57 +125,60 @@ internal struct BottomSheetView: View {
                 // Dragging down
                 if currentY < midY {
                     newHeight = midY
+                    newPosition = .middle
                 } else {
                     newHeight = collapsedY
+                    newPosition = .collapsed
                 }
             } else {
                 // Dragging up
                 if currentY > midY {
                     newHeight = midY
+                    newPosition = .middle
                 } else {
                     newHeight = minY
+                    newPosition = .expanded
                 }
             }
         } else {
             // Slow drag - snap to nearest position
-            let positions = [minY, midY, collapsedY]
-            newHeight = positions.min(by: { abs($0 - targetY) < abs($1 - targetY) }) ?? collapsedY
+            let positions = [(minY, SheetPosition.expanded), (midY, .middle), (collapsedY, .collapsed)]
+            let (height, pos) = positions.min(by: { abs($0.0 - targetY) < abs($1.0 - targetY) }) ?? (collapsedY, .collapsed)
+            newHeight = height
+            newPosition = pos
         }
         
         impactLight.impactOccurred()
         withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
             currentHeight = newHeight
+            position = newPosition
         }
     }
     
     private func setupInitialState(geometry: GeometryProxy) {
-        let maxHeight = geometry.size.height
-        let collapsedY = maxHeight - collapsedHeight
+        let maxScreenHeight = geometry.size.height
+        let collapsedY = maxScreenHeight - collapsedHeight
         currentHeight = collapsedY
         
         impactMed.prepare()
         impactLight.prepare()
     }
-}
-
-private struct StatView: View {
-    let title: String
-    let value: String
-    let icon: String
     
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(.blue)
-                .frame(width: 24)
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(value)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+    private func updateHeight(for position: SheetPosition, geometry: GeometryProxy) {
+        let maxScreenHeight = geometry.size.height
+        let minY = maxScreenHeight - expandedHeight
+        let midY = maxScreenHeight - middleHeight
+        let collapsedY = maxScreenHeight - collapsedHeight
+        
+        withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+            switch position {
+            case .collapsed:
+                currentHeight = collapsedY
+            case .middle:
+                currentHeight = midY
+            case .expanded:
+                currentHeight = minY
             }
         }
     }
-}
+} 

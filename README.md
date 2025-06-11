@@ -30,6 +30,14 @@ Stamps is an iOS app that helps users track their travel history by marking visi
 
 ## Recent Changes
 
+### 2024-03-20
+- Enhanced deletion functionality:
+  - Improved swipe-to-delete sensitivity and reliability
+  - Added context menu support for item deletion
+  - Implemented native iOS-style deletion interactions
+  - Added haptic feedback for better user experience
+  - Fixed list item background colors for better visual integration
+
 ### 2024-03-19
 - Implemented new PassportView for better sheet navigation
 - Added country detail view within the sheet

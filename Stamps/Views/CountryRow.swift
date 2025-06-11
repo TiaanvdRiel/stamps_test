@@ -10,6 +10,7 @@ struct CountryRow: View {
         HStack {
             Text(country.flag)
                 .font(.title)
+                .padding(.trailing, 4)
             VStack(alignment: .leading) {
                 Text(country.name)
                     .font(.headline)
@@ -27,7 +28,9 @@ struct CountryRow: View {
                 .foregroundColor(.secondary)
                 .font(.caption)
         }
+        .padding(.vertical, 8)
         .contentShape(Rectangle())
+        .background(Color.clear)
     }
 } 
  

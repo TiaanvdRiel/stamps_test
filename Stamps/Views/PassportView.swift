@@ -2,37 +2,38 @@ import SwiftUI
 import UIKit
 
 struct PassportView: View {
-    @EnvironmentObject private var viewModel: CountriesViewModel
-    @State private var selectedCountry: Country?
-    private let totalCountries = 195
+    @EnvironmentObject var viewModel: CountriesViewModel
+    @Binding var selectedCountry: Country?
+    @Binding var selectedCity: VisitedCity?
+    
+    private let totalPossibleCountries = 195
     
     private var progress: Double {
-        Double(viewModel.totalCountries) / Double(totalCountries)
+        Double(viewModel.visitedCountries.count) / Double(totalPossibleCountries)
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("My Passport")
-                .font(.title)
-                .fontWeight(.bold)
-                .padding(.horizontal)
-            
-            if selectedCountry == nil {
-                // Main passport view
-                mainPassportContent
-            } else if let country = selectedCountry {
-                // Country detail view
+        Group {
+            if let country = selectedCountry {
                 countryDetailContent(country)
+            } else {
+                mainPassportContent
             }
         }
     }
     
     private var mainPassportContent: some View {
         VStack(spacing: 20) {
+            Text("My Passport")
+                .font(.title)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+            
             HStack(spacing: 20) {
                 ProgressCircleView(
                     progress: progress,
-                    totalCountries: viewModel.totalCountries
+                    totalCountries: viewModel.visitedCountries.count
                 )
                 
                 VStack(alignment: .leading, spacing: 8) {
@@ -65,24 +66,39 @@ struct PassportView: View {
                 EmptyStateView()
             } else {
                 List {
-                    Section {
-                        ForEach(viewModel.visitedCountries) { country in
-                            Button(action: {
-                                withAnimation {
-                                    selectedCountry = country
-                                }
-                            }) {
-                                CountryRow(country: country, onSelect: {})
-                                    .environmentObject(viewModel)
+                    ForEach(viewModel.visitedCountries) { country in
+                        Button(action: {
+                            withAnimation {
+                                selectedCountry = country
+                                selectedCity = nil // Clear selected city when selecting a country
                             }
+                        }) {
+                            CountryRow(country: country, onSelect: {})
+                                .environmentObject(viewModel)
                         }
-                        .onDelete { indexSet in
-                            for index in indexSet {
-                                let country = viewModel.visitedCountries[index]
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
                                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 viewModel.removeCountry(country)
+                                if selectedCountry?.code == country.code {
+                                    selectedCountry = nil
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
                         }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                viewModel.removeCountry(country)
+                                if selectedCountry?.code == country.code {
+                                    selectedCountry = nil
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .listStyle(PlainListStyle())
@@ -96,6 +112,7 @@ struct PassportView: View {
                 Button(action: {
                     withAnimation {
                         selectedCountry = nil
+                        selectedCity = nil
                     }
                 }) {
                     HStack(spacing: 8) {
@@ -123,9 +140,13 @@ struct PassportView: View {
                 .padding(.horizontal)
             
             List {
-                Section {
-                    ForEach(viewModel.citiesForCountry(country.code)) { visitedCity in
-                        if let cityData = visitedCity.cityData {
+                ForEach(viewModel.citiesForCountry(country.code)) { visitedCity in
+                    if let cityData = visitedCity.cityData {
+                        Button(action: {
+                            withAnimation {
+                                selectedCity = visitedCity
+                            }
+                        }) {
                             CityRowView(
                                 cityData: cityData,
                                 visitedCity: visitedCity,
@@ -133,40 +154,33 @@ struct PassportView: View {
                                 onDelete: {}
                             )
                         }
-                    }
-                    .onDelete { indexSet in
-                        let cities = viewModel.citiesForCountry(country.code)
-                        for index in indexSet {
-                            let city = cities[index]
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            viewModel.removeVisitedCity(city)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                viewModel.removeVisitedCity(visitedCity)
+                                if selectedCity?.id == visitedCity.id {
+                                    selectedCity = nil
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                viewModel.removeVisitedCity(visitedCity)
+                                if selectedCity?.id == visitedCity.id {
+                                    selectedCity = nil
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .listRowBackground(Color.clear)
                     }
                 }
             }
             .listStyle(PlainListStyle())
-        }
-    }
-}
-
-private struct StatView: View {
-    let title: String
-    let value: String
-    let icon: String
-    
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(.blue)
-                .frame(width: 24)
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(value)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
         }
     }
 } 
