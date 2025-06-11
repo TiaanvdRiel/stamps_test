@@ -103,25 +103,4 @@ internal struct EmptyStateView: View {
             Spacer()
         }
     }
-}
-
-// MARK: - Country List Component
-internal struct CountryListView: View {
-    @EnvironmentObject var viewModel: CountriesViewModel
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            ForEach(viewModel.visitedCountries) { country in
-                CountryRow(country: country)
-                    .environmentObject(viewModel)
-                    .contentShape(Rectangle())
-                    .onTapGesture {}
-                if country.id != viewModel.visitedCountries.last?.id {
-                    Divider()
-                        .padding(.horizontal)
-                }
-            }
-        }
-        .padding(.vertical, 8)
-    }
 } 

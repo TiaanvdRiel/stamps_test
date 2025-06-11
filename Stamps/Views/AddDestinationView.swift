@@ -162,7 +162,7 @@ private struct CitySearchView: View {
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(filteredCities) { city in
-                        CityRowView(
+                        SearchCityRowView(
                             cityData: city,
                             isDisabled: countriesViewModel.visitedCities.contains(where: { visitedCity in
                                 visitedCity.cityData?.name == city.name && 
@@ -258,7 +258,7 @@ private struct CountryRowView: View {
     }
 }
 
-private struct CityRowView: View {
+private struct SearchCityRowView: View {
     let cityData: CityDataManager.CityData
     let isDisabled: Bool
     let onSelect: () -> Void

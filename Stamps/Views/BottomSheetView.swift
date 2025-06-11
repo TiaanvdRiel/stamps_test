@@ -58,60 +58,10 @@ internal struct BottomSheetView: View {
                 }
             )
             
-            ScrollView(showsIndicators: false) {
-                sheetScrollContent
-            }
+            PassportView()
+                .environmentObject(viewModel)
         }
-        .frame(maxWidth: .infinity, maxHeight: expandedHeight, alignment: .top)
         .background(sheetBackground)
-    }
-    
-    private var sheetScrollContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("My Passport")
-                .font(.title)
-                .fontWeight(.bold)
-                .padding(.horizontal)
-            
-            HStack(spacing: 20) {
-                ProgressCircleView(
-                    progress: progress,
-                    totalCountries: viewModel.totalCountries
-                )
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    StatView(
-                        title: "Total Cities",
-                        value: "\(viewModel.totalVisitedCities)",
-                        icon: "building.2.fill"
-                    )
-                    
-                    if let lastVisit = viewModel.lastVisit {
-                        StatView(
-                            title: "Last Visit",
-                            value: lastVisit.formatted(date: .abbreviated, time: .omitted),
-                            icon: "calendar"
-                        )
-                    }
-                    
-                    if let mostVisited = viewModel.mostVisitedCountry {
-                        StatView(
-                            title: "Most Visited",
-                            value: "\(mostVisited.name) (\(viewModel.citiesPerCountry[mostVisited.code] ?? 0))",
-                            icon: "star.fill"
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal)
-            
-            if viewModel.visitedCountries.isEmpty {
-                EmptyStateView()
-            } else {
-                CountryListView()
-                    .environmentObject(viewModel)
-            }
-        }
     }
     
     private var sheetBackground: some View {

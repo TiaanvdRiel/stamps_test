@@ -3,12 +3,13 @@ import UIKit
 
 struct CountryRow: View {
     let country: Country
+    let onSelect: () -> Void
     @EnvironmentObject var viewModel: CountriesViewModel
     
     private let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
     
     var body: some View {
-        NavigationLink(destination: VisitedCitiesView(country: country)) {
+        Button(action: onSelect) {
             HStack {
                 Text(country.flag)
                     .font(.title)
@@ -25,6 +26,10 @@ struct CountryRow: View {
                     .foregroundColor(.secondary)
                 }
                 Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+                    .padding(.trailing, 4)
                 Button(action: {
                     impactHeavy.impactOccurred()
                     viewModel.removeCountry(country)
@@ -37,6 +42,7 @@ struct CountryRow: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
+        .buttonStyle(PlainButtonStyle())
         .onAppear {
             impactHeavy.prepare()
         }
