@@ -158,6 +158,7 @@ Stamps is a SwiftUI app that helps users track their travel history by marking v
    - Implement country detail view
    - Add basic photo support
    - Improve search performance
+   - Add comprehensive code annotations for learning purposes
 
 2. **Medium Term (1-2 Months)**
    - Migrate to Core Data
@@ -170,6 +171,22 @@ Stamps is a SwiftUI app that helps users track their travel history by marking v
    - Implement sync capabilities
    - Expand to additional platforms
    - Add premium features
+
+## Code Documentation Requirements
+
+1. **Learning-Focused Annotations**
+   - Add clear, concise comments explaining SwiftUI concepts
+   - Document view lifecycle and state management
+   - Explain important Swift patterns and iOS conventions
+   - Highlight key SwiftUI view modifiers and their purpose
+   - Document complex gesture handling and animations
+
+2. **Documentation Style**
+   - Keep comments focused and relevant
+   - Explain "why" more than "what" when not obvious
+   - Use standard Swift documentation format
+   - Include links to Apple documentation for advanced concepts
+   - Document any non-obvious architectural decisions
 
 ## Recent Changes (March 20-21, 2024)
 
