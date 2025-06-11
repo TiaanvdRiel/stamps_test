@@ -27,8 +27,6 @@ struct CountryRow: View {
                 .foregroundColor(.secondary)
                 .font(.caption)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
         .contentShape(Rectangle())
     }
 } 

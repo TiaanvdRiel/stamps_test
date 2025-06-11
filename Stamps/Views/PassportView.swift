@@ -65,23 +65,23 @@ struct PassportView: View {
                 EmptyStateView()
             } else {
                 List {
-                    ForEach(viewModel.visitedCountries) { country in
-                        Button(action: {
-                            withAnimation {
-                                selectedCountry = country
+                    Section {
+                        ForEach(viewModel.visitedCountries) { country in
+                            Button(action: {
+                                withAnimation {
+                                    selectedCountry = country
+                                }
+                            }) {
+                                CountryRow(country: country, onSelect: {})
+                                    .environmentObject(viewModel)
                             }
-                        }) {
-                            CountryRow(country: country, onSelect: {})
-                                .environmentObject(viewModel)
                         }
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                    }
-                    .onDelete { indexSet in
-                        for index in indexSet {
-                            let country = viewModel.visitedCountries[index]
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            viewModel.removeCountry(country)
+                        .onDelete { indexSet in
+                            for index in indexSet {
+                                let country = viewModel.visitedCountries[index]
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                viewModel.removeCountry(country)
+                            }
                         }
                     }
                 }
@@ -123,24 +123,24 @@ struct PassportView: View {
                 .padding(.horizontal)
             
             List {
-                ForEach(viewModel.citiesForCountry(country.code)) { visitedCity in
-                    if let cityData = visitedCity.cityData {
-                        CityRowView(
-                            cityData: cityData,
-                            visitedCity: visitedCity,
-                            impactMed: UIImpactFeedbackGenerator(style: .medium),
-                            onDelete: {}
-                        )
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
+                Section {
+                    ForEach(viewModel.citiesForCountry(country.code)) { visitedCity in
+                        if let cityData = visitedCity.cityData {
+                            CityRowView(
+                                cityData: cityData,
+                                visitedCity: visitedCity,
+                                impactMed: UIImpactFeedbackGenerator(style: .medium),
+                                onDelete: {}
+                            )
+                        }
                     }
-                }
-                .onDelete { indexSet in
-                    let cities = viewModel.citiesForCountry(country.code)
-                    for index in indexSet {
-                        let city = cities[index]
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        viewModel.removeVisitedCity(city)
+                    .onDelete { indexSet in
+                        let cities = viewModel.citiesForCountry(country.code)
+                        for index in indexSet {
+                            let city = cities[index]
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            viewModel.removeVisitedCity(city)
+                        }
                     }
                 }
             }
