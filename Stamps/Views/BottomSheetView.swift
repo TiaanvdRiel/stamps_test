@@ -24,7 +24,7 @@ struct BottomSheetView<Content: View>: View {
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     
     // MARK: - Constants
-    private var collapsedHeight: CGFloat { 120 }
+    private var collapsedHeight: CGFloat { 70 }
     private var middleHeight: CGFloat { maxHeight * 0.6 }
     private var expandedHeight: CGFloat { maxHeight }
     private let snapThreshold: CGFloat = 50
@@ -61,7 +61,8 @@ struct BottomSheetView<Content: View>: View {
                         position = .collapsed
                         currentHeight = collapsedY
                     }
-                }
+                },
+                showCloseButton: position != .collapsed
             )
             
             content

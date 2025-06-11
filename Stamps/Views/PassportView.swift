@@ -22,22 +22,26 @@ struct PassportView: View {
                 mainPassportContent
             }
         }
+        //Add button
+        .overlay(alignment: .top) {
+            AddButton(showingAddSheet: $showingAddSheet, impactMed: impactMed)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.trailing, 20)
+                .offset(y: -120)
+        }
+        .sheet(isPresented: $showingAddSheet) {
+            AddDestinationView()
+                .environmentObject(viewModel)
+        }
     }
     
     private var mainPassportContent: some View {
         VStack(spacing: 20) {
-            ZStack {
-                Text("My Passport")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                
-                AddButton(showingAddSheet: $showingAddSheet, impactMed: impactMed)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.trailing, 20)
-                    .offset(y: -120)
-            }
+            Text("My Passport")
+                .font(.title)
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
             
             HStack(spacing: 20) {
                 ProgressCircleView(
@@ -105,10 +109,6 @@ struct PassportView: View {
                 }
                 .listStyle(PlainListStyle())
             }
-        }
-        .sheet(isPresented: $showingAddSheet) {
-            AddDestinationView()
-                .environmentObject(viewModel)
         }
     }
     

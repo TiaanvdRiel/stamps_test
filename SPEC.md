@@ -169,4 +169,133 @@ Stamps is a SwiftUI app that helps users track their travel history by marking v
    - Add trip planning features
    - Implement sync capabilities
    - Expand to additional platforms
-   - Add premium features 
+   - Add premium features
+
+## Recent Changes (March 20-21, 2024)
+
+### Map and Navigation Improvements
+- Fixed map centering functionality for countries and cities
+- Positioned selected items in upper third of screen to account for bottom sheet
+- Added proper animation and padding for map transitions
+
+### UI/UX Enhancements
+- Fixed bottom sheet behavior and animations
+- Restored "My Passport" heading in PassportView
+- Fixed progress circle calculation (using correct total of 195 countries)
+- Improved add button positioning and behavior:
+  - Moved button into PassportView content
+  - Positioned button to float above sheet using offset
+  - Button now moves naturally with sheet
+  - Maintains visibility across all views (main, country detail, city detail)
+  - Matches Apple Maps-style design
+- Refined sheet header design:
+  - Centered pull handle with subtle opacity (0.3)
+  - Styled close button to match native apps (opacity 0.4)
+  - Fixed padding and alignment for consistent spacing
+  - Improved overall visual hierarchy
+
+### Code Organization
+- Moved selection state (selectedCountry, selectedCity) to ContentView
+- Implemented proper bindings between views
+- Separated components into dedicated files
+- Fixed duplicate component declarations
+- Improved sheet and button state management
+
+### Bug Fixes
+- Fixed duplicate sheet rendering by consolidating logic in ContentView
+- Resolved issues with sheet position tracking
+- Fixed city deletion behavior
+- Improved swipe-to-delete reliability
+- Fixed add button disappearing in city detail view
+
+## Completed Tasks
+- [x] Basic map functionality
+- [x] Country and city tracking
+- [x] Bottom sheet implementation
+- [x] Add destination interface
+- [x] Basic statistics display
+- [x] Delete functionality
+- [x] UI polish and refinements
+- [x] Sheet animations and interactions
+- [x] Add button positioning and behavior
+- [x] View hierarchy organization
+
+## Remaining Tasks
+
+### High Priority
+1. Map Interactions
+   - [ ] Add zoom controls
+   - [ ] Implement double-tap to zoom
+   - [ ] Add user location tracking (optional)
+
+2. Data Management
+   - [ ] Implement data persistence
+   - [ ] Add data export/import functionality
+   - [ ] Add backup/restore features
+
+3. Search and Filtering
+   - [ ] Add search functionality for visited places
+   - [ ] Implement filters (by date, continent, etc.)
+   - [ ] Add sorting options for countries and cities
+
+### Medium Priority
+1. UI Enhancements
+   - [ ] Add animations for country/city additions and deletions
+   - [ ] Implement dark mode support
+   - [ ] Add haptic feedback for more interactions
+
+2. Statistics
+   - [ ] Add more detailed travel statistics
+   - [ ] Create timeline view of travels
+   - [ ] Add visualization of travel patterns
+
+3. Sharing
+   - [ ] Add ability to share travel stats
+   - [ ] Implement social sharing features
+   - [ ] Create shareable travel cards
+
+### Low Priority
+1. Additional Features
+   - [ ] Add notes/memories for each place
+   - [ ] Implement photo attachments
+   - [ ] Add travel planning features
+
+2. Performance
+   - [ ] Optimize map rendering for large datasets
+   - [ ] Improve city search performance
+   - [ ] Add caching for frequently accessed data
+
+3. Accessibility
+   - [ ] Implement VoiceOver support
+   - [ ] Add dynamic type support
+   - [ ] Improve keyboard navigation
+
+## Technical Specifications
+
+### Data Models
+- Country
+  - name: String
+  - code: String
+  - visitDate: Date
+  - coordinates: [CLLocationCoordinate2D]
+
+- VisitedCity
+  - cityData: CityData?
+  - countryCode: String
+  - visitDate: Date
+
+### Views
+- ContentView: Main container view
+- MapView: Displays visited locations
+- PassportView: Shows travel statistics and lists
+- BottomSheetView: Handles sheet interactions
+- AddDestinationView: Country/city selection interface
+
+### ViewModels
+- CountriesViewModel: Manages travel data
+- CountryPolygonManager: Handles map polygons
+
+### Dependencies
+- SwiftUI
+- MapKit
+- CoreLocation 

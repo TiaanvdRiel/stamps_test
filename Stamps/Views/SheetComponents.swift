@@ -25,26 +25,35 @@ internal struct AddButton: View {
 internal struct SheetHeaderView: View {
     let impactLight: UIImpactFeedbackGenerator
     let onCloseButtonTap: () -> Void
+    let showCloseButton: Bool
     
     var body: some View {
-        HStack {
-            Spacer()
+        ZStack {
+            // Center pull handle
             RoundedRectangle(cornerRadius: 5)
-                .fill(Color.gray.opacity(0.5))
+                .fill(Color.gray.opacity(0.3))
                 .frame(width: 40, height: 5)
-            Spacer()
-            Button(action: {
-                impactLight.impactOccurred()
-                onCloseButtonTap()
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(.gray)
+                .offset(y: -5)
+            
+            // Right-aligned close button
+            if showCloseButton {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        impactLight.impactOccurred()
+                        onCloseButtonTap()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 25))
+                            .foregroundColor(.gray.opacity(0.3))
+                    }
+                    .padding(.vertical, 20)
+                    .padding(.horizontal, 10)
+                }
             }
-            .padding(.trailing)
         }
-        .padding(.top, 10)
-        .padding(.bottom, 5)
+        .frame(height: 30)
+        .padding(.vertical, 6)
     }
 }
 
