@@ -22,7 +22,6 @@ struct PassportView: View {
                 mainPassportContent
             }
         }
-        //Add button
         .overlay(alignment: .top) {
             AddButton(showingAddSheet: $showingAddSheet, impactMed: impactMed)
                 .frame(maxWidth: .infinity, alignment: .trailing)
