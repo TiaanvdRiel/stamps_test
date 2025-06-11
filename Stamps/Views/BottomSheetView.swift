@@ -6,6 +6,7 @@ internal struct BottomSheetView: View {
     @Binding var showingAddSheet: Bool
     @State private var currentHeight: CGFloat = 0
     @GestureState private var dragOffset: CGFloat = 0
+    @State private var previousDragValue: DragGesture.Value?
     
     // Haptic feedback generators
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
@@ -16,6 +17,8 @@ internal struct BottomSheetView: View {
     private var collapsedHeight: CGFloat { 120 }
     private var middleHeight: CGFloat { UIScreen.main.bounds.height * 0.45 }
     private var expandedHeight: CGFloat { UIScreen.main.bounds.height * 0.85 }
+    private let snapThreshold: CGFloat = 50
+    private let velocityThreshold: CGFloat = 300
     
     private var progress: Double {
         Double(viewModel.totalCountries) / Double(totalCountries)
@@ -44,6 +47,8 @@ internal struct BottomSheetView: View {
         .gesture(createDragGesture(geometry: geometry))
         .onAppear { setupInitialState(geometry: geometry) }
         .ignoresSafeArea(edges: .bottom)
+        .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: currentHeight)
+        .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: dragOffset)
     }
     
     @ViewBuilder
@@ -52,7 +57,7 @@ internal struct BottomSheetView: View {
             SheetHeaderView(
                 impactLight: impactLight,
                 onCloseButtonTap: {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
                         currentHeight = collapsedY
                     }
                 }
@@ -75,9 +80,17 @@ internal struct BottomSheetView: View {
     
     // MARK: - Gesture Handling
     private func createDragGesture(geometry: GeometryProxy) -> some Gesture {
-        DragGesture()
+        let maxHeight = geometry.size.height
+        let minY = maxHeight - expandedHeight
+        let midY = maxHeight - middleHeight
+        let collapsedY = maxHeight - collapsedHeight
+        
+        return DragGesture(minimumDistance: 10)
             .updating($dragOffset) { value, state, _ in
                 state = value.translation.height
+            }
+            .onChanged { value in
+                previousDragValue = value
             }
             .onEnded { value in
                 handleDragGesture(value: value, geometry: geometry)
@@ -90,13 +103,43 @@ internal struct BottomSheetView: View {
         let midY = maxHeight - middleHeight
         let collapsedY = maxHeight - collapsedHeight
         
-        let newY = (currentHeight == 0 ? collapsedY : currentHeight) + value.translation.height
-        let positions = [collapsedY, midY, minY]
-        let closest = positions.min(by: { abs($0 - newY) < abs($1 - newY) }) ?? collapsedY
+        let currentY = (currentHeight == 0 ? collapsedY : currentHeight)
+        let targetY = currentY + value.translation.height
+        
+        // Calculate velocity
+        let timeDiff = value.time.timeIntervalSince(previousDragValue?.time ?? value.time)
+        let heightDiff = value.location.y - (previousDragValue?.location.y ?? value.location.y)
+        let velocity = timeDiff > 0 ? heightDiff / CGFloat(timeDiff) : 0
+        
+        // Determine target position based on velocity and position
+        var newHeight: CGFloat
+        
+        if abs(velocity) > velocityThreshold {
+            // Fast drag - move to next position in drag direction
+            if velocity > 0 {
+                // Dragging down
+                if currentY < midY {
+                    newHeight = midY
+                } else {
+                    newHeight = collapsedY
+                }
+            } else {
+                // Dragging up
+                if currentY > midY {
+                    newHeight = midY
+                } else {
+                    newHeight = minY
+                }
+            }
+        } else {
+            // Slow drag - snap to nearest position
+            let positions = [minY, midY, collapsedY]
+            newHeight = positions.min(by: { abs($0 - targetY) < abs($1 - targetY) }) ?? collapsedY
+        }
         
         impactLight.impactOccurred()
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            currentHeight = closest
+        withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+            currentHeight = newHeight
         }
     }
     

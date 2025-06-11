@@ -29,14 +29,9 @@ struct CityRowView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                impactMed.impactOccurred()
-                onDelete()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
     }
     
     private func formatPopulation(_ population: Int) -> String {
