@@ -4,7 +4,6 @@ import MapKit
 struct ContentView: View {
     @StateObject private var viewModel = CountriesViewModel()
     @StateObject private var polygonManager = CountryPolygonManager()
-    @State private var showingAddSheet = false
     @State private var sheetPosition: SheetPosition = .middle
     @State private var selectedCountry: Country?
     @State private var selectedCity: VisitedCity?
@@ -35,18 +34,7 @@ struct ContentView: View {
                         .environmentObject(viewModel)
                         .environmentObject(polygonManager)
                     }
-                    .overlay(alignment: .top) {
-                        if sheetPosition != .expanded {
-                            AddButton(showingAddSheet: $showingAddSheet, impactMed: UIImpactFeedbackGenerator(style: .medium))
-                                .offset(y: -30)
-                        }
-                    }
                 }
-            }
-            .sheet(isPresented: $showingAddSheet) {
-                AddDestinationView()
-                    .environmentObject(viewModel)
-                    .environmentObject(polygonManager)
             }
         }
     }

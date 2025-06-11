@@ -16,6 +16,9 @@ struct BottomSheetView<Content: View>: View {
     @GestureState private var dragOffset: CGFloat = 0
     @State private var previousDragValue: DragGesture.Value?
     
+    // Expose current offset for external views
+    @Binding var currentOffset: CGFloat
+    
     // Haptic feedback generators
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -27,9 +30,10 @@ struct BottomSheetView<Content: View>: View {
     private let snapThreshold: CGFloat = 50
     private let velocityThreshold: CGFloat = 300
     
-    init(position: Binding<SheetPosition>, maxHeight: CGFloat, @ViewBuilder content: () -> Content) {
+    init(position: Binding<SheetPosition>, maxHeight: CGFloat, currentOffset: Binding<CGFloat> = .constant(0), @ViewBuilder content: () -> Content) {
         self._position = position
         self.maxHeight = maxHeight
+        self._currentOffset = currentOffset
         self.content = content()
     }
     
@@ -47,6 +51,8 @@ struct BottomSheetView<Content: View>: View {
     // MARK: - View Components
     @ViewBuilder
     private func mainContent(geometry: GeometryProxy, minY: CGFloat, midY: CGFloat, collapsedY: CGFloat) -> some View {
+        let offset = max(minY, min(collapsedY, (currentHeight == 0 ? collapsedY : currentHeight) + dragOffset))
+        
         VStack(spacing: 0) {
             SheetHeaderView(
                 impactLight: impactLight,
@@ -62,7 +68,10 @@ struct BottomSheetView<Content: View>: View {
         }
         .background(sheetBackground)
         .frame(maxHeight: .infinity, alignment: .bottom)
-        .offset(y: max(minY, min(collapsedY, (currentHeight == 0 ? collapsedY : currentHeight) + dragOffset)))
+        .offset(y: offset)
+        .onChange(of: offset) { newOffset in
+            currentOffset = newOffset
+        }
         .gesture(createDragGesture(geometry: geometry))
         .onAppear { setupInitialState(geometry: geometry) }
         .onChange(of: position) { newPosition in

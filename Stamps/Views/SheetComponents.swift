@@ -18,7 +18,6 @@ internal struct AddButton: View {
                 .clipShape(Circle())
                 .shadow(radius: 4, x: 0, y: 2)
         }
-        .padding(.horizontal)
     }
 }
 

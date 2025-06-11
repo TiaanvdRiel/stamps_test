@@ -5,8 +5,10 @@ struct PassportView: View {
     @EnvironmentObject var viewModel: CountriesViewModel
     @Binding var selectedCountry: Country?
     @Binding var selectedCity: VisitedCity?
+    @State private var showingAddSheet = false
     
     private let totalPossibleCountries = 195
+    private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
     private var progress: Double {
         Double(viewModel.visitedCountries.count) / Double(totalPossibleCountries)
@@ -24,11 +26,18 @@ struct PassportView: View {
     
     private var mainPassportContent: some View {
         VStack(spacing: 20) {
-            Text("My Passport")
-                .font(.title)
-                .fontWeight(.bold)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+            ZStack {
+                Text("My Passport")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                
+                AddButton(showingAddSheet: $showingAddSheet, impactMed: impactMed)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 20)
+                    .offset(y: -120)
+            }
             
             HStack(spacing: 20) {
                 ProgressCircleView(
@@ -70,30 +79,23 @@ struct PassportView: View {
                         Button(action: {
                             withAnimation {
                                 selectedCountry = country
-                                selectedCity = nil // Clear selected city when selecting a country
+                                selectedCity = nil
                             }
                         }) {
                             CountryRow(country: country, onSelect: {})
-                                .environmentObject(viewModel)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                impactMed.impactOccurred()
                                 viewModel.removeCountry(country)
-                                if selectedCountry?.code == country.code {
-                                    selectedCountry = nil
-                                }
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
                         .contextMenu {
                             Button(role: .destructive) {
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                impactMed.impactOccurred()
                                 viewModel.removeCountry(country)
-                                if selectedCountry?.code == country.code {
-                                    selectedCountry = nil
-                                }
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -103,6 +105,10 @@ struct PassportView: View {
                 }
                 .listStyle(PlainListStyle())
             }
+        }
+        .sheet(isPresented: $showingAddSheet) {
+            AddDestinationView()
+                .environmentObject(viewModel)
         }
     }
     
