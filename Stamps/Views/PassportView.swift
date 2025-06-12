@@ -14,6 +14,9 @@ struct PassportView: View {
     /// Currently selected city for detail view
     @Binding var selectedCity: VisitedCity?
     
+    /// Controls the sheet position
+    @Binding var sheetPosition: SheetPosition
+    
     /// Controls the visibility of the add destination sheet
     @State private var showingAddSheet = false
     
@@ -141,79 +144,101 @@ struct PassportView: View {
     
     /// Main content showing the list of visited countries
     private var mainPassportContent: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
+            // Fixed header with transparent background
             Text("My Passport")
                 .font(.title)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
+                .padding(.vertical, 16)
             
-            HStack(spacing: 20) {
-                ProgressCircleView(
-                    progress: progress,
-                    totalCountries: viewModel.visitedCountries.count
-                )
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    StatView(
-                        title: "Total Cities",
-                        value: "\(viewModel.totalVisitedCities)",
-                        icon: "building.2.fill"
-                    )
-                    
-                    if let lastVisit = viewModel.lastVisit {
-                        StatView(
-                            title: "Last Visit",
-                            value: lastVisit.formatted(date: .abbreviated, time: .omitted),
-                            icon: "calendar"
+            // Scrollable content
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Stats section with blur background
+                    HStack(spacing: 20) {
+                        ProgressCircleView(
+                            progress: progress,
+                            totalCountries: viewModel.visitedCountries.count
                         )
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            StatView(
+                                title: "Total Cities",
+                                value: "\(viewModel.totalVisitedCities)",
+                                icon: "building.2.fill"
+                            )
+                            
+                            if let lastVisit = viewModel.lastVisit {
+                                StatView(
+                                    title: "Last Visit",
+                                    value: lastVisit.formatted(date: .abbreviated, time: .omitted),
+                                    icon: "calendar"
+                                )
+                            }
+                            
+                            if let mostVisited = viewModel.mostVisitedCountry {
+                                StatView(
+                                    title: "Most Visited",
+                                    value: "\(mostVisited.name) (\(viewModel.citiesPerCountry[mostVisited.code] ?? 0))",
+                                    icon: "star.fill"
+                                )
+                            }
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 16)
+                    .background {
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(.ultraThinMaterial)
+                    }
+                    .padding(.horizontal)
                     
-                    if let mostVisited = viewModel.mostVisitedCountry {
-                        StatView(
-                            title: "Most Visited",
-                            value: "\(mostVisited.name) (\(viewModel.citiesPerCountry[mostVisited.code] ?? 0))",
-                            icon: "star.fill"
-                        )
+                    // Countries list
+                    if viewModel.visitedCountries.isEmpty {
+                        EmptyStateView()
+                            .padding(.top, 20)
+                    } else {
+                        LazyVStack(spacing: 0) {
+                            ForEach(viewModel.visitedCountries) { country in
+                                Button(action: {
+                                    withAnimation {
+                                        selectedCountry = country
+                                        selectedCity = nil
+                                        if sheetPosition == .expanded {
+                                            sheetPosition = .middle
+                                        }
+                                    }
+                                }) {
+                                    CountryRow(country: country, onSelect: {})
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        impactMed.impactOccurred()
+                                        viewModel.removeCountry(country)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        impactMed.impactOccurred()
+                                        viewModel.removeCountry(country)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .listRowBackground(Color.clear)
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
+                            }
+                        }
                     }
                 }
+                .padding(.top, 20)
             }
-            .padding(.horizontal)
-            
-            if viewModel.visitedCountries.isEmpty {
-                EmptyStateView()
-            } else {
-                List {
-                    ForEach(viewModel.visitedCountries) { country in
-                        Button(action: {
-                            withAnimation {
-                                selectedCountry = country
-                                selectedCity = nil
-                            }
-                        }) {
-                            CountryRow(country: country, onSelect: {})
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                impactMed.impactOccurred()
-                                viewModel.removeCountry(country)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                impactMed.impactOccurred()
-                                viewModel.removeCountry(country)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                    }
-                }
-                .listStyle(PlainListStyle())
-            }
+            .scrollDismissesKeyboard(.immediately)
         }
     }
 } 

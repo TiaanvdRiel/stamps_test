@@ -225,6 +225,31 @@ Stamps is a SwiftUI app that helps users track their travel history by marking v
 - Improved swipe-to-delete reliability
 - Fixed add button disappearing in city detail view
 
+## Recent Changes (March 22, 2024)
+
+### Bottom Sheet Improvements
+- Optimized sheet heights for better usability:
+  - Reduced collapsed height to 70 points for better map visibility
+  - Maintained middle height at 60% for comfortable browsing
+  - Set expanded height to 80% of screen height
+- Enhanced sheet transparency:
+  - Implemented ultra-thin material for maximum translucency
+  - Reduced overlay opacity to 0.3 for better map visibility
+  - Maintained readability while increasing transparency
+- Improved close button behavior:
+  - Added conditional visibility based on sheet state
+  - Hides when sheet is collapsed
+  - Maintains consistent UI with native apps
+
+### Code Documentation
+- Added comprehensive code annotations for learning purposes:
+  - Documented BottomSheetView with detailed explanations
+  - Added clear documentation to PassportView
+  - Explained key SwiftUI concepts and patterns
+  - Added section markers for better code organization
+- Updated development requirements to include documentation standards
+- Added learning-focused documentation guidelines to specification
+
 ## Completed Tasks
 - [x] Basic map functionality
 - [x] Country and city tracking
@@ -236,6 +261,8 @@ Stamps is a SwiftUI app that helps users track their travel history by marking v
 - [x] Sheet animations and interactions
 - [x] Add button positioning and behavior
 - [x] View hierarchy organization
+- [x] Code documentation and learning resources
+- [x] Sheet transparency and visual refinements
 
 ## Remaining Tasks
 

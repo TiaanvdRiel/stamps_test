@@ -14,6 +14,7 @@ struct CountryRow: View {
             VStack(alignment: .leading) {
                 Text(country.name)
                     .font(.headline)
+                    .foregroundColor(.black)
                 HStack {
                     Text(country.formattedDate)
                         .font(.caption)

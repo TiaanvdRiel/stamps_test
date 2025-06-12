@@ -145,9 +145,15 @@ struct BottomSheetView<Content: View>: View {
         let midY = maxScreenHeight - middleHeight
         let collapsedY = maxScreenHeight - collapsedHeight
         
-        return DragGesture(minimumDistance: 10)
+        return DragGesture(minimumDistance: 10, coordinateSpace: .global)
             .updating($dragOffset) { value, state, _ in
-                state = value.translation.height
+                // Only allow dragging down if we're at the top of the scroll content
+                if value.translation.height > 0 {
+                    state = value.translation.height
+                } else {
+                    // Allow dragging up always
+                    state = value.translation.height
+                }
             }
             .onChanged { value in
                 previousDragValue = value

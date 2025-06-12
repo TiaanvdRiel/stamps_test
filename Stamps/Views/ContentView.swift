@@ -29,7 +29,8 @@ struct ContentView: View {
                     ) {
                         PassportView(
                             selectedCountry: $selectedCountry,
-                            selectedCity: $selectedCity
+                            selectedCity: $selectedCity,
+                            sheetPosition: $sheetPosition
                         )
                         .environmentObject(viewModel)
                         .environmentObject(polygonManager)
