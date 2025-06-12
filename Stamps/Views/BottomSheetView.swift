@@ -152,7 +152,7 @@ struct BottomSheetView<Content: View>: View {
                     state = value.translation.height
                 } else {
                     // Allow dragging up always
-                    state = value.translation.height
+                state = value.translation.height
                 }
             }
             .onChanged { value in

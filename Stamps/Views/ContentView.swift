@@ -10,7 +10,7 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
+        ZStack {
                 MapView(
                     visitedCountries: viewModel.visitedCountries,
                     selectedCountry: selectedCountry,
@@ -19,7 +19,7 @@ struct ContentView: View {
                 .environmentObject(viewModel)
                 .environmentObject(polygonManager)
                 .ignoresSafeArea()
-                
+            
                 VStack {
                     Spacer()
                     
@@ -32,11 +32,11 @@ struct ContentView: View {
                             selectedCity: $selectedCity,
                             sheetPosition: $sheetPosition
                         )
-                        .environmentObject(viewModel)
+                .environmentObject(viewModel)
                         .environmentObject(polygonManager)
                     }
                 }
-            }
+        }
         }
     }
 }

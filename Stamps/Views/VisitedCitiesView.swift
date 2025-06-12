@@ -48,4 +48,4 @@ struct VisitedCitiesView: View {
             }
         }
     }
-} 
+}

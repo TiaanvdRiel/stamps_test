@@ -69,8 +69,13 @@ struct PassportView: View {
             HStack {
                 Button(action: {
                     withAnimation {
-                        selectedCountry = nil
-                        selectedCity = nil
+                        selectedCity = nil  // Clear city first to trigger map recentering
+                        // Use a slight delay to allow the map to recenter before transitioning views
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation {
+                                selectedCountry = nil
+                            }
+                        }
                     }
                 }) {
                     HStack(spacing: 8) {
@@ -103,6 +108,9 @@ struct PassportView: View {
                         Button(action: {
                             withAnimation {
                                 selectedCity = visitedCity
+                                if sheetPosition == .expanded {
+                                    sheetPosition = .middle
+                                }
                             }
                         }) {
                             CityRowView(

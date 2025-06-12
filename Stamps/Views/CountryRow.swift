@@ -7,29 +7,29 @@ struct CountryRow: View {
     @EnvironmentObject var viewModel: CountriesViewModel
     
     var body: some View {
-        HStack {
-            Text(country.flag)
-                .font(.title)
+            HStack {
+                Text(country.flag)
+                    .font(.title)
                 .padding(.trailing, 4)
-            VStack(alignment: .leading) {
-                Text(country.name)
-                    .font(.headline)
+                VStack(alignment: .leading) {
+                    Text(country.name)
+                        .font(.headline)
                     .foregroundColor(.black)
-                HStack {
-                    Text(country.formattedDate)
-                        .font(.caption)
-                    Text("•")
-                    Text("\(viewModel.citiesForCountry(country.code).count) cities")
-                        .font(.caption)
+                    HStack {
+                        Text(country.formattedDate)
+                            .font(.caption)
+                        Text("•")
+                        Text("\(viewModel.citiesForCountry(country.code).count) cities")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.secondary)
                 }
-                .foregroundColor(.secondary)
-            }
-            Spacer()
+                Spacer()
             Image(systemName: "chevron.right")
                 .foregroundColor(.secondary)
                 .font(.caption)
-        }
-        .padding(.vertical, 8)
+                }
+            .padding(.vertical, 8)
         .contentShape(Rectangle())
         .background(Color.clear)
     }

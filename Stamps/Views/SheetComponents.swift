@@ -38,15 +38,15 @@ internal struct SheetHeaderView: View {
             // Right-aligned close button
             if showCloseButton {
                 HStack {
-                    Spacer()
-                    Button(action: {
-                        impactLight.impactOccurred()
-                        onCloseButtonTap()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
+            Spacer()
+            Button(action: {
+                impactLight.impactOccurred()
+                onCloseButtonTap()
+            }) {
+                Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 25))
                             .foregroundColor(.gray.opacity(0.3))
-                    }
+            }
                     .padding(.vertical, 20)
                     .padding(.horizontal, 10)
                 }
