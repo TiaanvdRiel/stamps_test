@@ -7,10 +7,20 @@ struct MapView: UIViewRepresentable {
     @EnvironmentObject var polygonManager: CountryPolygonManager
     var selectedCountry: Country?
     var selectedCity: VisitedCity?
+    @State private var temporaryPolygons: [MKPolygon] = []
+    @State private var temporaryCountryName: String?
     
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
+        
+        // Enable points of interest and labels
+        mapView.pointOfInterestFilter = .includingAll
+        
+        // Add tap gesture recognizer
+        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        tapGesture.delegate = context.coordinator
+        mapView.addGestureRecognizer(tapGesture)
         
         // Set initial region to show most of the world
         let initialRegion = MKCoordinateRegion(
@@ -53,6 +63,11 @@ struct MapView: UIViewRepresentable {
             }
         }
         
+        // Add temporary overlays for unvisited selected country
+        if !temporaryPolygons.isEmpty {
+            mapView.addOverlays(temporaryPolygons)
+        }
+        
         // Add pins for visited cities
         let cityAnnotations = viewModel.visitedCities.compactMap { visitedCity -> CityAnnotation? in
             guard let cityData = visitedCity.cityData else { return nil }
@@ -91,26 +106,100 @@ struct MapView: UIViewRepresentable {
         Coordinator(self)
     }
     
-    class Coordinator: NSObject, MKMapViewDelegate {
+    class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         var parent: MapView
+        private let impactLight = UIImpactFeedbackGenerator(style: .light)
         
         init(_ parent: MapView) {
             self.parent = parent
         }
         
+        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+            guard let mapView = gesture.view as? MKMapView else { return }
+            let point = gesture.location(in: mapView)
+            
+            // Convert tap point to map coordinate
+            let coordinate = mapView.convert(point, toCoordinateFrom: mapView)
+            
+            // Search for tapped location
+            let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            let geocoder = CLGeocoder()
+            
+            geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
+                guard let self = self else { return }
+                if let placemark = placemarks?.first, let countryName = placemark.country {
+                    self.impactLight.impactOccurred()
+                    
+                    DispatchQueue.main.async {
+                        // Get country polygons
+                        let polygons = self.parent.polygonManager.polygonsForCountry(countryName)
+                        if !polygons.isEmpty {
+                            // Check if the country is already visited
+                            if let visitedCountry = self.parent.visitedCountries.first(where: { $0.name == countryName }) {
+                                // For visited countries, update the selection in the view model
+                                withAnimation {
+                                    self.parent.temporaryPolygons = []
+                                    self.parent.temporaryCountryName = nil
+                                    self.parent.viewModel.selectedCountry = visitedCountry
+                                }
+                            } else {
+                                // For unvisited countries, show white highlight
+                                self.parent.temporaryPolygons = polygons
+                                self.parent.temporaryCountryName = countryName
+                            }
+                            
+                            // Center the map on the country
+                            let boundingMapRect = polygons.reduce(MKMapRect.null) { rect, overlay in
+                                rect.union(overlay.boundingMapRect)
+                            }
+                            
+                            let verticalOffset = boundingMapRect.size.height * 0.7
+                            let offsetRect = MKMapRect(
+                                x: boundingMapRect.midX - boundingMapRect.size.width * 0.6,
+                                y: boundingMapRect.midY - boundingMapRect.size.height * 0.6 + verticalOffset,
+                                width: boundingMapRect.size.width * 1.2,
+                                height: boundingMapRect.size.height * 1.2
+                            )
+                            
+                            mapView.setVisibleMapRect(offsetRect, animated: true)
+                        }
+                    }
+                }
+            }
+        }
+        
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polygon = overlay as? MKPolygon {
                 let renderer = MKPolygonRenderer(polygon: polygon)
+                
+                // Check if this is a temporary polygon (unvisited selected country)
+                if parent.temporaryPolygons.contains(where: { $0 === polygon }) {
+                    renderer.fillColor = UIColor.white.withAlphaComponent(0.15)
+                    renderer.strokeColor = UIColor.white
+                    renderer.lineWidth = 2
+                    return renderer
+                }
+                
+                // Regular visited country polygon
                 renderer.fillColor = UIColor.systemBlue.withAlphaComponent(0.3)
                 renderer.strokeColor = UIColor.systemBlue
                 renderer.lineWidth = 2
+                
+                // If this is a selected visited country, use dotted line
+                if let selectedCountry = parent.selectedCountry {
+                    let polygons = parent.polygonManager.polygonsForCountry(selectedCountry.name)
+                    if polygons.contains(where: { $0 === polygon }) {
+                        renderer.lineDashPattern = [4, 4]
+                    }
+                }
+                
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)
         }
         
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-            guard annotation is CityAnnotation else { return nil }
+            guard let cityAnnotation = annotation as? CityAnnotation else { return nil }
             
             let identifier = "CityPin"
             var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)

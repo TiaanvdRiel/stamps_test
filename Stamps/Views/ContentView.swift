@@ -7,19 +7,23 @@ struct ContentView: View {
     @State private var sheetPosition: SheetPosition = .middle
     @State private var selectedCountry: Country?
     @State private var selectedCity: VisitedCity?
+    @State private var showingAddSheet = false
+    @State private var tempSelectedLocation: (name: String, coordinate: CLLocationCoordinate2D)?
     
     var body: some View {
         GeometryReader { geometry in
-        ZStack {
+            ZStack {
                 MapView(
                     visitedCountries: viewModel.visitedCountries,
                     selectedCountry: selectedCountry,
                     selectedCity: selectedCity
+//                    showingAddSheet: $showingAddSheet,
+//                    tempSelectedLocation: $tempSelectedLocation
                 )
                 .environmentObject(viewModel)
                 .environmentObject(polygonManager)
                 .ignoresSafeArea()
-            
+                
                 VStack {
                     Spacer()
                     
@@ -32,11 +36,23 @@ struct ContentView: View {
                             selectedCity: $selectedCity,
                             sheetPosition: $sheetPosition
                         )
-                .environmentObject(viewModel)
+                        .environmentObject(viewModel)
                         .environmentObject(polygonManager)
                     }
                 }
+            }
         }
+        .sheet(isPresented: $showingAddSheet) {
+            if let location = tempSelectedLocation {
+                AddDestinationView(
+                    initialSearchText: location.name,
+                    coordinate: location.coordinate
+                )
+                .environmentObject(viewModel)
+            } else {
+                AddDestinationView()
+                    .environmentObject(viewModel)
+            }
         }
     }
 }

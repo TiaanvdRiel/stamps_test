@@ -1,17 +1,29 @@
 import SwiftUI
+import CoreLocation
 
 struct AddDestinationView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var countriesViewModel: CountriesViewModel
     @State private var selectedTab = 0
-    @State private var countrySearchText = ""
-    @State private var citySearchText = ""
+    @State private var countrySearchText: String
+    @State private var citySearchText: String
     @State private var filteredCities: [CityDataManager.CityData] = []
     @State private var isSearching = false
     @State private var selectedDate = Date()
     
+    // New properties for handling pre-filled data
+    let initialSearchText: String?
+    let coordinate: CLLocationCoordinate2D?
+    
     private let searchDebouncer = Debouncer(delay: 0.3)
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
+    
+    init(initialSearchText: String? = nil, coordinate: CLLocationCoordinate2D? = nil) {
+        self.initialSearchText = initialSearchText
+        self.coordinate = coordinate
+        self._countrySearchText = State(initialValue: initialSearchText ?? "")
+        self._citySearchText = State(initialValue: initialSearchText ?? "")
+    }
     
     var body: some View {
         NavigationView {
@@ -27,7 +39,8 @@ struct AddDestinationView: View {
                     CountrySearchView(
                         searchText: $countrySearchText,
                         selectedDate: $selectedDate,
-                        dismiss: dismiss
+                        dismiss: dismiss,
+                        coordinate: coordinate
                     )
                     .tag(0)
                     
@@ -36,7 +49,8 @@ struct AddDestinationView: View {
                         filteredCities: filteredCities,
                         isSearching: isSearching,
                         selectedDate: $selectedDate,
-                        dismiss: dismiss
+                        dismiss: dismiss,
+                        coordinate: coordinate
                     )
                     .tag(1)
                 }
@@ -44,10 +58,24 @@ struct AddDestinationView: View {
             }
             .navigationTitle("Add Destination")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+            .navigationBarItems(trailing: Button("Cancel") {
+                dismiss()
+            })
+        }
+        .onAppear {
+            // Set initial tab based on whether we're adding a country or city
+            if let location = initialSearchText, let coordinate = coordinate {
+                let geocoder = CLGeocoder()
+                let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+                geocoder.reverseGeocodeLocation(location) { placemarks, error in
+                    if let placemark = placemarks?.first {
+                        DispatchQueue.main.async {
+                            if placemark.locality != nil {
+                                selectedTab = 1 // City tab
+                            } else if placemark.country != nil {
+                                selectedTab = 0 // Country tab
+                            }
+                        }
                     }
                 }
             }
@@ -85,6 +113,7 @@ private struct CountrySearchView: View {
     @Binding var searchText: String
     @Binding var selectedDate: Date
     let dismiss: DismissAction
+    let coordinate: CLLocationCoordinate2D?
     @EnvironmentObject private var countriesViewModel: CountriesViewModel
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
@@ -131,11 +160,17 @@ private struct CountrySearchView: View {
     
     private func addCountry(_ country: Country) {
         impactMed.impactOccurred()
+        let coordinates: [CLLocationCoordinate2D]
+        if let coordinate = coordinate {
+            coordinates = [coordinate]
+        } else {
+            coordinates = []
+        }
         let newCountry = Country(
             name: country.name,
             code: country.code,
             visitDate: selectedDate,
-            coordinates: []
+            coordinates: coordinates
         )
         countriesViewModel.addCountry(newCountry)
     }
@@ -147,6 +182,7 @@ private struct CitySearchView: View {
     let isSearching: Bool
     @Binding var selectedDate: Date
     let dismiss: DismissAction
+    let coordinate: CLLocationCoordinate2D?
     @EnvironmentObject private var countriesViewModel: CountriesViewModel
     private let impactMed = UIImpactFeedbackGenerator(style: .medium)
     
@@ -191,11 +227,17 @@ private struct CitySearchView: View {
         // If the country isn't visited yet, add it
         if !countriesViewModel.visitedCountries.contains(where: { $0.code == cityData.countryCode }) {
             if let countryName = Locale.current.localizedString(forRegionCode: cityData.countryCode) {
+                let coordinates: [CLLocationCoordinate2D]
+                if let coordinate = coordinate {
+                    coordinates = [coordinate]
+                } else {
+                    coordinates = [cityData.coordinates.clCoordinate]
+                }
                 let country = Country(
                     name: countryName,
                     code: cityData.countryCode,
                     visitDate: selectedDate,
-                    coordinates: [cityData.coordinates.clCoordinate]
+                    coordinates: coordinates
                 )
                 countriesViewModel.addCountry(country)
             }
@@ -203,7 +245,13 @@ private struct CitySearchView: View {
             // If the country exists but doesn't have coordinates, update them
             if existingCountry.coordinates.isEmpty {
                 var updatedCountry = existingCountry
-                updatedCountry.coordinates = [cityData.coordinates.clCoordinate]
+                let coordinates: [CLLocationCoordinate2D]
+                if let coordinate = coordinate {
+                    coordinates = [coordinate]
+                } else {
+                    coordinates = [cityData.coordinates.clCoordinate]
+                }
+                updatedCountry.coordinates = coordinates
                 // Remove and re-add to trigger update
                 countriesViewModel.removeCountry(existingCountry)
                 countriesViewModel.addCountry(updatedCountry)
@@ -217,7 +265,6 @@ private struct CitySearchView: View {
             visitDate: selectedDate
         )
         countriesViewModel.addVisitedCity(visitedCity)
-        dismiss()
     }
 }
 
